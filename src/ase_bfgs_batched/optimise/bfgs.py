@@ -80,7 +80,7 @@ class BFGSBatched:
         logger.info(
             "Starting BFGS: nconf={}, natoms={}, steps={}, fmax={}, fexit={}, max_step={}",
             batch.n_conformers,
-            batch.pos.shape[0],
+            self.n_atoms,
             self.steps,
             self.fmax,
             self.fexit,
@@ -96,23 +96,22 @@ class BFGSBatched:
         self._converged = False
 
         # Init per-step trajectory storage directly on batch: [T, N, 3]
-        N = self.batch.pos.shape[0]
-        self.batch.pos_dt = torch.empty((0, N, 3), dtype=self.dtype, device=self.device)  # type: ignore[attr-defined]
+        self.batch.pos_dt = self.batch.pos.clone().unsqueeze(dim=0)
 
         # Initial force evaluation
         forces = self._forces()
-        fmax_conf = self._per_conformer_max_force(forces)
+        fmax_per_conf = self._per_conformer_max_force(forces)
         logger.debug(
             "Initial per-conformer fmax: min={:.6f}, max={:.6f}",
-            float(fmax_conf.min().item()),
-            float(fmax_conf.max().item()),
+            float(fmax_per_conf.min().item()),
+            float(fmax_per_conf.max().item()),
         )
 
         # Update per-conformer converged mask (no step index recorded yet)
-        self._update_convergence(fmax_conf, after_step=False)
+        self._update_convergence(fmax_per_conf, after_step=False)
 
         # Exit checks before any step
-        if self._should_exit(fmax_conf, after_step=False):
+        if self._should_exit(fmax_per_conf, after_step=False):
             logger.info(
                 "Exiting before any step: converged={}, nsteps={}", self._converged, self.nsteps
             )
@@ -124,24 +123,24 @@ class BFGSBatched:
                 self.step(forces)
 
             # Append current positions as a new frame to batch.pos_dt
-            self.batch.pos_dt = torch.cat(  # type: ignore[attr-defined]
-                (self.batch.pos_dt, self.batch.pos.detach().clone().unsqueeze(0)),  # type: ignore[attr-defined]
+            self.batch.pos_dt = torch.cat(
+                (self.batch.pos_dt, self.batch.pos.detach().clone().unsqueeze(0)),
                 dim=0,
             )
             self.nsteps += 1
             logger.debug("Completed step {}.", self.nsteps)
 
             forces = self._forces()
-            fmax_conf = self._per_conformer_max_force(forces)
+            fmax_per_conf = self._per_conformer_max_force(forces)
             logger.debug(
                 "Step {} per-conformer fmax: min={:.6f}, max={:.6f}",
                 self.nsteps,
-                float(fmax_conf.min().item()),
-                float(fmax_conf.max().item()),
+                float(fmax_per_conf.min().item()),
+                float(fmax_per_conf.max().item()),
             )
 
             # Update convergence and exit checks after step (record step index)
-            if self._should_exit(fmax_conf, after_step=True):
+            if self._should_exit(fmax_per_conf, after_step=True):
                 logger.info("Exiting after step {}: converged={}", self.nsteps, self._converged)
                 self._finalize_trajectories()
                 return self._converged
@@ -151,13 +150,13 @@ class BFGSBatched:
 
         Skips conformers already marked as converged.
         """
-        for idx, (start, end) in self._iter_conformer_slices():
-            if hasattr(self.batch, "converged") and bool(self.batch.converged[idx].item()):  # type: ignore[attr-defined]
+        for idx in range(self.batch.n_conformers):
+            if hasattr(self.batch, "converged") and bool(self.batch.converged[idx].item()):
                 logger.debug("Skipping conformer {} (already converged).", idx)
                 continue
 
-            pos_i = self.batch.pos[start:end]  # [Ni, 3]
-            f_i = forces[start:end]  # [Ni, 3]
+            pos_i = self.batch.pos[batch.batch == idx]  # [Ni, 3]
+            f_i = forces[batch.batch == idx]  # [Ni, 3]
 
             # Flatten to 3Ni for BFGS math and use float64 for stability
             r = pos_i.reshape(-1).to(torch.float64)
@@ -227,7 +226,7 @@ class BFGSBatched:
             self._H[idx] = H
             self._r0[idx] = r.detach().clone()
             self._f0[idx] = f.detach().clone()
-            logger.debug("Applied step to conformer {} (atoms [{}:{}]).", idx, start, end)
+            logger.debug("Applied step to conformer {}.", idx)
 
     # --------------------- utilities ---------------------
 
@@ -249,8 +248,8 @@ class BFGSBatched:
 
         # If Data (single conformer), synthesize a 1-conformer view for iteration
         if not hasattr(self.batch, "ptr"):
-            self.batch.ptr = torch.tensor([0, self.n_atoms], device=self.device, dtype=torch.long)  # type: ignore[attr-defined]
-            self.batch.batch = torch.zeros(self.n_atoms, device=self.device, dtype=torch.long)  # type: ignore[attr-defined]
+            self.batch.ptr = torch.tensor([0, self.n_atoms], device=self.device, dtype=torch.long)
+            self.batch.batch = torch.zeros(self.n_atoms, device=self.device, dtype=torch.long)
             logger.debug("Synthesized ptr/batch for single Data with natoms={}.", self.n_atoms)
 
         # Init per-conformer convergence tracking
@@ -259,30 +258,25 @@ class BFGSBatched:
             not hasattr(self.batch, "converged")
             or self.batch.converged is None
             or self.batch.converged.numel() != nconf
-        ):  # type: ignore[attr-defined]
-            self.batch.converged = torch.zeros(nconf, dtype=torch.bool, device=self.device)  # type: ignore[attr-defined]
+        ):
+            self.batch.converged = torch.zeros(nconf, dtype=torch.bool, device=self.device)
             logger.debug("Initialized batch.converged with shape [{}].", nconf)
         if (
             not hasattr(self.batch, "converged_step")
             or self.batch.converged_step is None
             or self.batch.converged_step.numel() != nconf
-        ):  # type: ignore[attr-defined]
+        ):
             self.batch.converged_step = torch.full(
                 (nconf,), -1, dtype=torch.long, device=self.device
-            )  # type: ignore[attr-defined]
+            )
             logger.debug("Initialized batch.converged_step with shape [{}].", nconf)
 
         logger.debug("Batch check complete: natoms={}, nconf={}.", self.n_atoms, nconf)
 
-    def _iter_conformer_slices(self):
-        """Yield (idx, (start, end)) slices for each conformer in the batch."""
-        for idx in range(self.batch.ptr.numel() - 1):
-            yield idx, (int(self.batch.ptr[idx].item()), int(self.batch.ptr[idx + 1].item()))
-
     def _forces(self) -> torch.Tensor:
         """Request forces from the attached calculator and validate shape/dtype."""
         # f = self.calculator.forces(self.batch)  # TODO: uncomment
-        f = torch.rand_like(self.batch.pos) * 0.1  # Dummy forces for testing
+        f = torch.rand_like(self.batch.pos) / (5 * self.nsteps + 1)  # Dummy forces for testing
         if not isinstance(f, torch.Tensor):
             raise TypeError("calculator.forces(batch) must return a torch.Tensor.")
         if f.shape != batch.pos.shape:
@@ -302,25 +296,24 @@ class BFGSBatched:
         """
         norms = torch.linalg.vector_norm(forces, dim=1)
         vals = []
-        for _, (s, e) in self._iter_conformer_slices():
-            vals.append(norms[s:e].max())
+        for i in range(batch.n_conformers):
+            vals.append(norms[self.batch.batch == i].max())
         out = torch.stack(vals)
         return out
 
-    def _update_convergence(self, fmax_conf: torch.Tensor, after_step: bool) -> None:
+    def _update_convergence(self, fmax_per_conf: torch.Tensor, after_step: bool) -> None:
         """Update per-conformer convergence mask and converged_step.
 
         Args:
-            batch: The Batch/Data being optimized.
-            fmax_conf: Tensor [n_conformers] with max |F| per conformer.
+            fmax_per_conf: Tensor [n_conformers] with max |F| per conformer.
             after_step: If True, record converged_step as current step for newly converged.
         """
         if self.fmax is None:
             return
         target = float(self.fmax)
-        newly = (~self.batch.converged) & (fmax_conf < target)  # type: ignore[attr-defined]
-        if newly.any():
-            idxs = torch.nonzero(newly, as_tuple=False).view(-1)
+        newly_converged = (~self.batch.converged) & (fmax_per_conf < target)
+        if newly_converged.any():
+            idxs = torch.nonzero(newly_converged, as_tuple=False).view(-1)
             logger.info(
                 "Newly converged conformers ({}): {} at step {}.",
                 idxs.numel(),
@@ -328,14 +321,14 @@ class BFGSBatched:
                 self.nsteps if after_step else "pre-step",
             )
             # Update mask
-            self.batch.converged = self.batch.converged.clone()  # type: ignore[attr-defined]
-            self.batch.converged[newly] = True  # type: ignore[attr-defined]
+            self.batch.converged = self.batch.converged.clone()
+            self.batch.converged[newly_converged] = True
             # Record step index only after a step has been taken
             if after_step:
-                self.batch.converged_step = self.batch.converged_step.clone()  # type: ignore[attr-defined]
-                self.batch.converged_step[idxs] = self.nsteps  # type: ignore[attr-defined]
+                self.batch.converged_step = self.batch.converged_step.clone()
+                self.batch.converged_step[idxs] = self.nsteps
 
-    def _should_exit(self, fmax_conf: torch.Tensor, after_step: bool) -> bool:
+    def _should_exit(self, fmax_per_conf: torch.Tensor, after_step: bool) -> bool:
         """Update convergence bookkeeping and decide whether to stop.
 
         Exit if:
@@ -344,22 +337,26 @@ class BFGSBatched:
         - Step limit reached.
         """
         # Update per-conformer convergence bookkeeping
-        self._update_convergence(fmax_conf, after_step=after_step)
+        self._update_convergence(fmax_per_conf, after_step=after_step)
 
         # All converged
-        if bool(self.batch.converged.all().item()):  # type: ignore[attr-defined]
+        if self.batch.converged.all().item():
             self._converged = True
             logger.info("All conformers converged at step {}.", self.nsteps)
             return True
 
-        # Explosion (any conformer exceeds fexit)
-        if self.fexit is not None and (fmax_conf > float(self.fexit)).any():
-            offenders = (
-                torch.nonzero(fmax_conf > float(self.fexit), as_tuple=False).view(-1).tolist()
-            )
-            logger.warning("Exiting due to fexit. Offending conformers: {}.", offenders)
-            self._converged = False
-            return True
+        # Explosion (all non-converged conformers exceed fexit)
+        if self.fexit is not None:
+            active = ~self.batch.converged
+            if active.any() and torch.all(fmax_per_conf[active] > float(self.fexit)):
+                offenders = torch.nonzero(active, as_tuple=False).view(-1).tolist()
+                logger.warning(
+                    "Exiting due to fexit. All non-converged conformers exceeded fexit. "
+                    "Offenders: {}.",
+                    offenders,
+                )
+                self._converged = False
+                return True
 
         # Step limit
         if self.steps >= 0 and self.nsteps >= self.steps:
@@ -377,38 +374,37 @@ class BFGSBatched:
           otherwise its final geometry.
         """
         # Ensure pos_dt exists and is on correct device/dtype
-        if not hasattr(self.batch, "pos_dt") or self.batch.pos_dt is None:  # type: ignore[attr-defined]
+        if not hasattr(self.batch, "pos_dt") or self.batch.pos_dt is None:
             self.batch.pos_dt = torch.empty(
                 (0, self.n_atoms, 3), dtype=self.dtype, device=self.device
-            )  # type: ignore[attr-defined]
+            )
         else:
-            self.batch.pos_dt = self.batch.pos_dt.to(device=self.device, dtype=self.dtype)  # type: ignore[attr-defined]
+            self.batch.pos_dt = self.batch.pos_dt.to(device=self.device, dtype=self.dtype)
 
-        frames = int(self.batch.pos_dt.shape[0])  # type: ignore[attr-defined]
+        frames = int(self.batch.pos_dt.shape[0])
         logger.debug("pos_dt assembled with {} frames.", frames)
 
         # pos_min: default to final geometry (last frame if available)
         if frames == 0:
             pos_min = self.batch.pos.detach().clone()
         else:
-            pos_min = self.batch.pos_dt[-1].detach().clone()  # type: ignore[attr-defined]
+            pos_min = self.batch.pos_dt[-1].detach().clone()
 
         # Overwrite converged conformers with geometry at their converged step
-        if hasattr(self.batch, "converged_step") and self.batch.converged_step is not None:  # type: ignore[attr-defined]
+        if hasattr(self.batch, "converged_step") and self.batch.converged_step is not None:
             replaced = []
-            for i, (s, e) in self._iter_conformer_slices():
-                cs = int(self.batch.converged_step[i].item())  # type: ignore[attr-defined]
+            for i in range(self.batch.n_conformers):
+                cs = int(self.batch.converged_step[i].item())
                 if cs > 0 and frames >= cs:
-                    t = cs - 1  # pos_dt index is 0-based
                     if frames > 0:
-                        pos_min[s:e] = self.batch.pos_dt[t, s:e]  # type: ignore[attr-defined]
+                        pos_min[batch.batch == i] = self.batch.pos_dt[self.nsteps, batch.batch == i]
                         replaced.append(int(i))
             if replaced:
                 logger.debug("pos_min updated from converged steps for conformers: {}.", replaced)
 
-        self.batch.pos_min = pos_min  # type: ignore[attr-defined]
+        self.batch.pos_min = pos_min
         nconf = int(self.batch.ptr.numel() - 1)
-        nconv = int(self.batch.converged.sum().item()) if hasattr(self.batch, "converged") else 0  # type: ignore[attr-defined]
+        nconv = int(self.batch.converged.sum().item()) if hasattr(self.batch, "converged") else 0
         logger.info("Finalized trajectories: nconf={}, converged={}/{}.", nconf, nconv, nconf)
 
 
@@ -420,6 +416,6 @@ if __name__ == "__main__":
     atoms_list = [molecule("H2O"), molecule("NH3"), molecule("CH4")]
     batch = ConformerBatch.from_ase(atoms_list)
 
-    optimiser = BFGSBatched(steps=10, fmax=0.01, fexit=500.0)
+    optimiser = BFGSBatched(steps=10, fmax=0.05, fexit=500.0)
     optimiser.calculator = 0  # Replace with actual calculator implementing forces(batch)
     converged = optimiser.run(batch)
