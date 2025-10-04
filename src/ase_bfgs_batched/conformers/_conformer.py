@@ -37,6 +37,8 @@ class Conformer(Data):
 
     def __post_init__(self):
         """Validate attributes."""
+        if self.atom_types is None and self.pos is None:
+            return  # allow PyG to construct placeholder during collate
         if self.pos.ndim != 2 or self.pos.size(-1) != 3:
             raise ValueError(f"pos must have shape [n_atoms, 3], got {tuple(self.pos.shape)}")
         if self.atom_types.ndim != 1:
@@ -64,20 +66,21 @@ class Conformer(Data):
         )
 
     @classmethod
-    def from_rdkit(cls, mol: Chem.Mol, **kwargs) -> "Conformer":
-        """Construct Conformer from RDKit Mol with 3D conformer."""
+    def from_rdkit(cls, mol: Chem.Mol, conf: Optional[Chem.Conformer] = None, **kwargs) -> "Conformer":
+        """Construct Conformer from RDKit Mol with 3D conformer or Conformer."""
         if mol is None:
             raise ValueError("mol is None")
         n = mol.GetNumAtoms()
         if n == 0:
             raise ValueError("mol has no atoms")
         
-        n_confs = mol.GetNumConformers()
-        if n_confs == 0:
-            raise ValueError("RDKit Mol has no conformers. Provide a 3D conformer.")
-        elif n_confs > 1:
-            logger.warning(f"RDKit Mol has {n_confs} conformers. Using the first conformer (ID 0).")
-        conf = mol.GetConformer()        
+        if conf is None:
+            n_confs = mol.GetNumConformers()
+            if n_confs == 0:
+                raise ValueError("RDKit Mol has no conformers. Provide a 3D conformer.")
+            elif n_confs > 1:
+                logger.warning(f"RDKit Mol has {n_confs} conformers. Using the first conformer (ID 0).")
+            conf = mol.GetConformer()  
 
         # Atomic numbers
         z = np.fromiter((a.GetAtomicNum() for a in mol.GetAtoms()), count=n, dtype=np.int64)
