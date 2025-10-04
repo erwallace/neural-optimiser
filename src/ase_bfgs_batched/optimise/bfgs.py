@@ -150,13 +150,13 @@ class BFGSBatched:
 
         Skips conformers already marked as converged.
         """
-        for idx in range(self.batch.n_conformers):
+        for idx, (start, end) in self._iter_conformer_slices():
             if hasattr(self.batch, "converged") and bool(self.batch.converged[idx].item()):
                 logger.debug("Skipping conformer {} (already converged).", idx)
                 continue
 
-            pos_i = self.batch.pos[batch.batch == idx]  # [Ni, 3]
-            f_i = forces[batch.batch == idx]  # [Ni, 3]
+            pos_i = self.batch.pos[start:end]  # [Ni, 3]
+            f_i = forces[start:end]  # [Ni, 3]
 
             # Flatten to 3Ni for BFGS math and use float64 for stability
             r = pos_i.reshape(-1).to(torch.float64)
@@ -272,6 +272,13 @@ class BFGSBatched:
             logger.debug("Initialized batch.converged_step with shape [{}].", nconf)
 
         logger.debug("Batch check complete: natoms={}, nconf={}.", self.n_atoms, nconf)
+
+    def _iter_conformer_slices(self):
+        """Yield (idx, (start, end)) atom index slices for each conformer.
+
+        Note: slices update batch.pos inplace. Masks create copies, so do not work here."""
+        for i in range(self.batch.n_conformers):
+            yield i, (int(self.batch.ptr[i].item()), int(self.batch.ptr[i + 1].item()))
 
     def _forces(self) -> torch.Tensor:
         """Request forces from the attached calculator and validate shape/dtype."""
@@ -397,6 +404,7 @@ class BFGSBatched:
                 cs = int(self.batch.converged_step[i].item())
                 if cs > 0 and frames >= cs:
                     if frames > 0:
+                        # TODO: mask won't work here, mask create a copy, not change in-place
                         pos_min[batch.batch == i] = self.batch.pos_dt[self.nsteps, batch.batch == i]
                         replaced.append(int(i))
             if replaced:
