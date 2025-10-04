@@ -13,9 +13,14 @@ class ConformerBatch(Batch):
     pos_dtype = torch.float32
     molecule_idx_dtype = torch.int64
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, device: str = "cpu", **kwargs):
+        super().__init__(**kwargs)
+
+        self.device = device
+
         self.__post_init__()
+
+        self.to(self.device)
 
     def __post_init__(self):
         """Validate attributes."""
