@@ -328,11 +328,9 @@ class BFGSBatched:
                 self.nsteps if after_step else "pre-step",
             )
             # Update mask
-            self.batch.converged = self.batch.converged.clone()
             self.batch.converged[newly_converged] = True
             # Record step index only after a step has been taken
             if after_step:
-                self.batch.converged_step = self.batch.converged_step.clone()
                 self.batch.converged_step[idxs] = self.nsteps
 
     def _should_exit(self, fmax_per_conf: torch.Tensor, after_step: bool) -> bool:
@@ -380,40 +378,23 @@ class BFGSBatched:
         - pos_min is constructed per conformer from its converged step if available,
           otherwise its final geometry.
         """
-        # Ensure pos_dt exists and is on correct device/dtype
-        if not hasattr(self.batch, "pos_dt") or self.batch.pos_dt is None:
-            self.batch.pos_dt = torch.empty(
-                (0, self.n_atoms, 3), dtype=self.dtype, device=self.device
-            )
-        else:
-            self.batch.pos_dt = self.batch.pos_dt.to(device=self.device, dtype=self.dtype)
-
         frames = int(self.batch.pos_dt.shape[0])
         logger.debug("pos_dt assembled with {} frames.", frames)
 
-        # pos_min: default to final geometry (last frame if available)
-        if frames == 0:
-            pos_min = self.batch.pos.detach().clone()
-        else:
-            pos_min = self.batch.pos_dt[-1].detach().clone()
+        # pos_min = self.batch.pos_dt[-1]
 
-        # Overwrite converged conformers with geometry at their converged step
-        if hasattr(self.batch, "converged_step") and self.batch.converged_step is not None:
-            replaced = []
-            for i in range(self.batch.n_conformers):
-                cs = int(self.batch.converged_step[i].item())
-                if cs > 0 and frames >= cs:
-                    if frames > 0:
-                        # TODO: mask won't work here, mask create a copy, not change in-place
-                        pos_min[batch.batch == i] = self.batch.pos_dt[self.nsteps, batch.batch == i]
-                        replaced.append(int(i))
-            if replaced:
-                logger.debug("pos_min updated from converged steps for conformers: {}.", replaced)
+        # Filter pod_dt using converged_steps to give converged geometries
+        converged_steps_by_atom = self.batch.converged_step[self.batch.batch]
+        atom_idx = torch.arange(converged_steps_by_atom.numel(), device=self.device)
+        self.batch.pos_min = self.batch.pos_dt[converged_steps_by_atom, atom_idx]
 
-        self.batch.pos_min = pos_min
-        nconf = int(self.batch.ptr.numel() - 1)
         nconv = int(self.batch.converged.sum().item()) if hasattr(self.batch, "converged") else 0
-        logger.info("Finalized trajectories: nconf={}, converged={}/{}.", nconf, nconv, nconf)
+        logger.info(
+            "Finalized trajectories: nconf={}, converged={}/{}.",
+            batch.n_conformers,
+            nconv,
+            batch.n_conformers,
+        )
 
 
 if __name__ == "__main__":
