@@ -40,7 +40,7 @@ class Optimiser:
 
         logger.debug(
             "Initialized {}(max_step={}, steps={}, fmax={}, fexit={})",
-            self.__name__,
+            self.__class__.__name__,
             max_step,
             steps,
             fmax,
@@ -57,7 +57,9 @@ class Optimiser:
             True if all conformers converged, else False.
         """
         if self.calculator is None:
-            raise AttributeError(f"{self.__name__}.calculator must be set before running dynamics.")
+            raise AttributeError(
+                f"{self.__class__.__name__}.calculator must be set before running dynamics."
+            )
 
         self.device = batch.pos.device
         self.dtype = batch.pos.dtype
@@ -68,7 +70,7 @@ class Optimiser:
 
         logger.info(
             "Starting {}: nconf={}, natoms={}, steps={}, fmax={}, fexit={}, max_step={}",
-            self.__name__,
+            self.__class__.__name__,
             self.batch.n_conformers,
             self.n_atoms,
             self.steps,
@@ -150,10 +152,10 @@ class Optimiser:
         """
         if not hasattr(self.batch, "pos"):
             raise ValueError("Batch/Data must have a .pos tensor of shape [n_atoms, 3].")
-        if self.batch.pos.ndim != 2 or self.batch.pos.size(-1) != 3:
-            raise ValueError(f"pos must have shape [n_atoms, 3], got {tuple(self.batch.pos.shape)}")
         if not isinstance(self.batch.pos, torch.Tensor):
             raise ValueError("pos must be a torch.Tensor.")
+        if self.batch.pos.ndim != 2 or self.batch.pos.size(-1) != 3:
+            raise ValueError(f"pos must have shape [n_atoms, 3], got {tuple(self.batch.pos.shape)}")
         if self.batch.pos.dtype not in (torch.float32, torch.float64):
             raise ValueError("pos must be float32 or float64.")
 
@@ -164,7 +166,7 @@ class Optimiser:
             logger.debug("Synthesized ptr/batch for single Data with natoms={}.", self.n_atoms)
 
         # Init per-conformer convergence tracking
-        nconf = int(self.batch.ptr.numel() - 1)
+        nconf = self.batch.n_conformers
         if (
             not hasattr(self.batch, "converged")
             or self.batch.converged is None
