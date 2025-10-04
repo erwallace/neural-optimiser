@@ -4,7 +4,7 @@ from loguru import logger
 from ase_bfgs_batched.optimise import Optimiser
 
 
-class BFGSBatched(Optimiser):
+class BFGS(Optimiser):
     def __init__(
         self,
         max_step: float = 0.04,
@@ -114,6 +114,6 @@ if __name__ == "__main__":
     atoms_list = [molecule("H2O"), molecule("NH3"), molecule("CH4")]
     batch = ConformerBatch.from_ase(atoms_list * 100)
 
-    optimiser = BFGSBatched(steps=10, fmax=0.05, fexit=500.0)
+    optimiser = BFGS(steps=10, fmax=0.05, fexit=500.0)
     optimiser.calculator = 0  # Replace with actual calculator implementing forces(batch)
     converged = optimiser.run(batch)
