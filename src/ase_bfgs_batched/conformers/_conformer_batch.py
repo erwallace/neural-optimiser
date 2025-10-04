@@ -64,10 +64,33 @@ class ConformerBatch(Batch):
         conformers = [Conformer.from_ase(a) for a in atoms_list]
         return cls.from_data_list(conformers)
 
-    def to_rdkit(self) -> list[Chem.Mol]:
-        # write list of conformers to list? or do i want to have multiple conformers per molecule?
-        raise NotImplementedError("ConformerBatch.to_rdkit() not implemented yet.")
+    @property
+    def n_molecules(self) -> int:
+        """Number of molecules in the batch."""
+        return self.molecule_idxs.max().item() + 1
+    
+    @property
+    def n_conformers(self) -> int:
+        """Number of conformers in the batch."""
+        return self.batch.max().item() + 1
+    
+    @property
+    def n_atoms(self) -> int:
+        """Number of atoms in the batch."""
+        return self.pos.size(0)
+    
+    def conformer(self, idx: int) -> Conformer:
+        """Get the idx-th conformer in the batch as a Conformer object."""
+        kwargs = {}
 
+        for k, v in self.__dict__["_store"].items():
+            if torch.is_tensor(v) and v.size(0) == self.n_atoms:
+                kwargs[k] = v[self.batch == idx]
+            elif torch.is_tensor(v) and v.size(0) == self.n_conformers:
+                kwargs[k] = v[idx]
+
+        return Conformer(**kwargs)
+    
 
 if __name__ == "__main__":
     from ase.build import molecule
@@ -93,3 +116,5 @@ if __name__ == "__main__":
 
     print(batch.batch)
     print(batch.molecule_idxs)
+
+    print(batch.conformer(0))
