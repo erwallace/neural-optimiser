@@ -1,0 +1,55 @@
+[project]
+name = "ase-bfgs-batched"
+description = "Batched optimisation using the Atomic Simulation Environment implementation of the BFGS algorithm."
+authors = [{name = "Ewan Wallace", email = "erw@wallace2.com"}]
+license = "Apache-2.0"
+dynamic = ["version"]
+requires-python = ">=3.11"
+readme = {file = "README.md", content-type = "text/markdown"}
+
+dependencies = [
+    "rdkit",
+    "ase",
+    "numpy",
+    "pandas",
+    "omegaconf",
+    "hydra-core",
+    "universal-pathlib",
+    "loguru",
+    "rich",
+    "torch_geometric",
+    "torch",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "pre-commit",
+]
+
+[project.urls]
+Homepage = "https://github.com/prescient-design/StrainRelief"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools >= 65", "setuptools_scm[toml]>=6.2"]
+build-backend = 'setuptools.build_meta'
+
+[tool.ruff.lint]
+select = [
+    "E", # pycodestyle
+    "F", # pyflakes
+    "I", # isort
+    "UP", # pyupgrade
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.setuptools_scm]
+local_scheme = "node-and-date"
+search_parent_directories = true
+version_scheme = "no-guess-dev"
