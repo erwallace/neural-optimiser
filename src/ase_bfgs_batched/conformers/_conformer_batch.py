@@ -44,6 +44,16 @@ class ConformerBatch(Batch):
             self.molecule_idxs = self.batch.clone()
 
     @classmethod
+    def from_data_list(cls, data_list, *args, **kwargs):
+        """Wrap Batch.from_data_list to finalize attributes."""
+        batch = super().from_data_list(data_list, *args, **kwargs)
+        # Ensure molecule_idxs exists (was not available during placeholder __post_init__)
+        if not hasattr(batch, "molecule_idxs"):
+            batch.molecule_idxs = batch.batch.clone()
+        batch.__post_init__()
+        return batch
+
+    @classmethod
     def from_rdkit(cls, mols: list[Chem.Mol] | Chem.Mol) -> "ConformerBatch":
         if isinstance(mols, Chem.Mol):
             mols = [mols]

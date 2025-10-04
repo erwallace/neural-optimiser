@@ -133,8 +133,7 @@ class Conformer(Data):
         if self.smiles is None:
             raise ValueError("Cannot plot 2D structure without SMILES string.")
         mol = Chem.MolFromSmiles(self.smiles)
-        img = Draw.MolToImage(mol)
-        img.show()
+        return Draw.MolToImage(mol)
 
     def _plot_3d(self) -> None:
         """Plot 3D structure from atomic positions."""
