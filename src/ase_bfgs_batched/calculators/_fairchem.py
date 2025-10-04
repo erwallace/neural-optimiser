@@ -1,4 +1,4 @@
-class FAIRChemCalculator():
+class FAIRChemCalculator:
     def __init__(self, model_path):
         try:
             from fairchem import FAIRChemCalculator as FAIRChemCalc
@@ -8,7 +8,7 @@ class FAIRChemCalculator():
 
     def calculate(self, atoms):
         return self.calculator.calculate(atoms)
-    
+
     def to_atomic_data():
         pass
 

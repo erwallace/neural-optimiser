@@ -1,4 +1,4 @@
-from ._mace import MACECalculator
 from ._fairchem import FAIRChemCalculator
+from ._mace import MACECalculator
 
-__all__ = ['MACECalculator', 'FAIRChemCalculator']
+__all__ = ["MACECalculator", "FAIRChemCalculator"]

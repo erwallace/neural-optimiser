@@ -1,16 +1,15 @@
-# -*- coding: utf-8 -*-
 import warnings
 
 import numpy as np
-from numpy.linalg import eigh
-
 from ase.optimize.optimize import Optimizer
 from ase.utils import basestring
+from numpy.linalg import eigh
 
 
 class BFGS(Optimizer):
-    def __init__(self, atoms, restart=None, logfile='-', trajectory=None,
-                 maxstep=0.04, master=None):
+    def __init__(
+        self, atoms, restart=None, logfile="-", trajectory=None, maxstep=0.04, master=None
+    ):
         """BFGS optimizer.
 
         Parameters:
@@ -39,15 +38,17 @@ class BFGS(Optimizer):
             set to true,  this rank will save files.
         """
         if maxstep > 1.0:
-            warnings.warn('You are using a much too large value for '
-                          'the maximum step size: %.1f Å' % maxstep)
+            warnings.warn(
+                "You are using a much too large value for "
+                "the maximum step size: %.1f Å" % maxstep
+            )
         self.maxstep = maxstep
 
         Optimizer.__init__(self, atoms, restart, logfile, trajectory, master)
 
     def todict(self):
         d = Optimizer.todict(self)
-        if hasattr(self, 'maxstep'):
+        if hasattr(self, "maxstep"):
             d.update(maxstep=self.maxstep)
         return d
 
@@ -66,7 +67,7 @@ class BFGS(Optimizer):
         self.update(r.flat, f, self.r0, self.f0)
         omega, V = eigh(self.H)
         dr = np.dot(V, np.dot(f, V) / np.fabs(omega)).reshape((-1, 3))
-        steplengths = (dr**2).sum(1)**0.5
+        steplengths = (dr**2).sum(1) ** 0.5
         dr = self.determine_step(dr, steplengths)
         atoms.set_positions(r + dr)
         self.r0 = r.flat.copy()
@@ -105,7 +106,8 @@ class BFGS(Optimizer):
         """Initialize hessian from old trajectory."""
         if isinstance(traj, basestring):
             from ase.io.trajectory import Trajectory
-            traj = Trajectory(traj, 'r')
+
+            traj = Trajectory(traj, "r")
         self.H = None
         atoms = traj[0]
         r0 = atoms.get_positions().ravel()

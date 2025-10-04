@@ -1,17 +1,15 @@
-from collections.abc import Iterator
-from typing import Any, Union, Optional
-
-from torch_geometric.data import Data
-import torch
+from typing import Any
 
 import numpy as np
+import torch
 from ase import Atoms
 from loguru import logger
 from rdkit import Chem
-from rdkit.Chem import rdDetermineBonds, Draw
+from rdkit.Chem import Draw, rdDetermineBonds
+from torch_geometric.data import Data
+
 
 class Conformer(Data):
-
     atom_type_dtype = torch.int64
     pos_dtype = torch.float32
 
@@ -19,9 +17,9 @@ class Conformer(Data):
         self,
         atom_types: torch.Tensor,  # [n_atoms]
         pos: torch.Tensor,  # [n_atoms, 3]
-        smiles: Optional[str] = None,
+        smiles: str | None = None,
         device: str = "cpu",
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         super().__init__()
 
@@ -42,45 +40,47 @@ class Conformer(Data):
         if self.pos.ndim != 2 or self.pos.size(-1) != 3:
             raise ValueError(f"pos must have shape [n_atoms, 3], got {tuple(self.pos.shape)}")
         if self.atom_types.ndim != 1:
-            raise ValueError(f"atom_types must be 1-D [n_atoms], got {tuple(self.atom_types.shape)}")
+            raise ValueError(
+                f"atom_types must be 1-D [n_atoms], got {tuple(self.atom_types.shape)}"
+            )
         if self.atom_types.size(0) != self.pos.size(0):
             raise ValueError(
                 f"atom_types and pos must have matching n_atoms, "
                 f"got {self.atom_types.size(0)} vs {self.pos.size(0)}"
             )
         if self.atom_types.dtype != self.atom_type_dtype:
-            raise ValueError(f"atom_types must have dtype {self.atom_type_dtype}, got {self.atom_types.dtype}")
+            raise ValueError(
+                f"atom_types must have dtype {self.atom_type_dtype}, got {self.atom_types.dtype}"
+            )
         if self.pos.dtype != self.pos_dtype:
             raise ValueError(f"pos must have dtype {self.pos_dtype}, got {self.pos.dtype}")
 
     @classmethod
-    def from_ase(cls, atoms: Atoms, **kwargs) -> "Conformer": 
+    def from_ase(cls, atoms: Atoms, **kwargs) -> "Conformer":
         """Construct Conformer from ASE Atoms object."""
         z = np.asarray(atoms.get_atomic_numbers(), dtype=np.int64)
         pos = np.asarray(atoms.get_positions(), dtype=np.float32)
 
-        return cls(
-            atom_types=torch.from_numpy(z),
-            pos=torch.from_numpy(pos),
-            **kwargs
-        )
+        return cls(atom_types=torch.from_numpy(z), pos=torch.from_numpy(pos), **kwargs)
 
     @classmethod
-    def from_rdkit(cls, mol: Chem.Mol, conf: Optional[Chem.Conformer] = None, **kwargs) -> "Conformer":
+    def from_rdkit(cls, mol: Chem.Mol, conf: Chem.Conformer | None = None, **kwargs) -> "Conformer":
         """Construct Conformer from RDKit Mol with 3D conformer or Conformer."""
         if mol is None:
             raise ValueError("mol is None")
         n = mol.GetNumAtoms()
         if n == 0:
             raise ValueError("mol has no atoms")
-        
+
         if conf is None:
             n_confs = mol.GetNumConformers()
             if n_confs == 0:
                 raise ValueError("RDKit Mol has no conformers. Provide a 3D conformer.")
             elif n_confs > 1:
-                logger.warning(f"RDKit Mol has {n_confs} conformers. Using the first conformer (ID 0).")
-            conf = mol.GetConformer()  
+                logger.warning(
+                    f"RDKit Mol has {n_confs} conformers. Using the first conformer (ID 0)."
+                )
+            conf = mol.GetConformer()
 
         # Atomic numbers
         z = np.fromiter((a.GetAtomicNum() for a in mol.GetAtoms()), count=n, dtype=np.int64)
@@ -94,7 +94,7 @@ class Conformer(Data):
             atom_types=torch.from_numpy(z),
             pos=torch.from_numpy(pos),
             smiles=Chem.MolToSmiles(mol),
-            **kwargs
+            **kwargs,
         )
 
     def to_ase(self) -> Atoms:
@@ -154,9 +154,10 @@ class Conformer(Data):
         else:
             raise ValueError("dim must be 2 or 3")
 
+
 if __name__ == "__main__":
-    from rdkit.Chem import AllChem
     from ase.build import molecule
+    from rdkit.Chem import AllChem
 
     # Example usage: RDKit
     mol = Chem.MolFromSmiles("CCO")
@@ -175,4 +176,3 @@ if __name__ == "__main__":
     print(conformer_ase)
     d3 = conformer_ase.plot(dim=3)
     d3.show()
-

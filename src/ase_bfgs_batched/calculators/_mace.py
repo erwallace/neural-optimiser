@@ -1,4 +1,4 @@
-class MACECalculator():
+class MACECalculator:
     def __init__(self, model_path):
         try:
             from mace import MACECalculator as MACECalc
@@ -8,7 +8,7 @@ class MACECalculator():
 
     def calculate(self, atoms):
         return self.calculator.calculate(atoms)
-    
+
     def to_atomic_data():
         pass
 

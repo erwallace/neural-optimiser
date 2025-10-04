@@ -1,20 +1,15 @@
-import sys
-import pickle
-import time
-from math import sqrt
-from os.path import isfile
-
-from ase.calculators.calculator import PropertyNotImplementedError
-from ase.parallel import rank, barrier
-from ase.io.trajectory import Trajectory
-from ase.utils import basestring
 import collections
+import sys
+
+from ase.io.trajectory import Trajectory
+from ase.parallel import rank
+from ase.utils import basestring
 
 
 class Dynamics:
     """Base-class for all MD and structure optimization classes."""
-    def __init__(self, atoms, logfile, trajectory,
-                 append_trajectory=False, master=None):
+
+    def __init__(self, atoms, logfile, trajectory, append_trajectory=False, master=None):
         """Dynamics object.
 
         Parameters:
@@ -48,10 +43,10 @@ class Dynamics:
         if not master:
             logfile = None
         elif isinstance(logfile, basestring):
-            if logfile == '-':
+            if logfile == "-":
                 logfile = sys.stdout
             else:
-                logfile = open(logfile, 'a')
+                logfile = open(logfile, "a")
         self.logfile = logfile
 
         self.observers = []
@@ -60,15 +55,13 @@ class Dynamics:
         if trajectory is not None:
             if isinstance(trajectory, basestring):
                 mode = "a" if append_trajectory else "w"
-                trajectory = Trajectory(trajectory, mode=mode,
-                                        atoms=atoms, master=master)
+                trajectory = Trajectory(trajectory, mode=mode, atoms=atoms, master=master)
             self.attach(trajectory)
 
     def get_number_of_steps(self):
         return self.nsteps
 
-    def insert_observer(self, function, position=0, interval=1,
-                        *args, **kwargs):
+    def insert_observer(self, function, position=0, interval=1, *args, **kwargs):
         """Insert an observer."""
         if not isinstance(function, collections.Callable):
             function = function.write
@@ -84,11 +77,11 @@ class Dynamics:
         arguments *args* and keyword arguments *kwargs*.  This is
         currently zero indexed."""
 
-        if hasattr(function, 'set_description'):
+        if hasattr(function, "set_description"):
             d = self.todict()
             d.update(interval=interval)
             function.set_description(d)
-        if not hasattr(function, '__call__'):
+        if not hasattr(function, "__call__"):
             function = function.write
         self.observers.append((function, interval, args, kwargs))
 
@@ -105,4 +98,3 @@ class Dynamics:
                     call = True
             if call:
                 function(*args, **kwargs)
-
