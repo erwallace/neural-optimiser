@@ -68,17 +68,17 @@ class ConformerBatch(Batch):
     def n_molecules(self) -> int:
         """Number of molecules in the batch."""
         return self.molecule_idxs.max().item() + 1
-    
+
     @property
     def n_conformers(self) -> int:
         """Number of conformers in the batch."""
         return self.batch.max().item() + 1
-    
+
     @property
     def n_atoms(self) -> int:
         """Number of atoms in the batch."""
         return self.pos.size(0)
-    
+
     def conformer(self, idx: int) -> Conformer:
         """Get the idx-th conformer in the batch as a Conformer object."""
         kwargs = {}
@@ -90,7 +90,7 @@ class ConformerBatch(Batch):
                 kwargs[k] = v[idx]
 
         return Conformer(**kwargs)
-    
+
 
 if __name__ == "__main__":
     from ase.build import molecule
