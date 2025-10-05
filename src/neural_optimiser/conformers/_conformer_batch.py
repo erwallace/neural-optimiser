@@ -17,13 +17,12 @@ class ConformerBatch(Batch):
         super().__init__(**kwargs)
 
         self.device = device
-
         self.__post_init__()
-
         self.to(self.device)
 
     def __post_init__(self):
         """Validate attributes."""
+
         if getattr(self, "atom_types", None) is None or getattr(self, "pos", None) is None:
             return  # placeholder instance during Batch.from_data_list
         if self.pos.ndim != 2 or self.pos.size(-1) != 3:
@@ -49,17 +48,17 @@ class ConformerBatch(Batch):
             self.molecule_idxs = self.batch.clone()
 
     @classmethod
-    def from_data_list(cls, data_list, *args, **kwargs):
+    def from_data_list(cls, data_list: list, device: str = "cpu", *args, **kwargs):
         """Wrap Batch.from_data_list to finalize attributes."""
         batch = super().from_data_list(data_list, *args, **kwargs)
-        # Ensure molecule_idxs exists (was not available during placeholder __post_init__)
         if not hasattr(batch, "molecule_idxs"):
             batch.molecule_idxs = batch.batch.clone()
+        batch.to(device=device)
         batch.__post_init__()
         return batch
 
     @classmethod
-    def from_rdkit(cls, mols: list[Chem.Mol] | Chem.Mol) -> "ConformerBatch":
+    def from_rdkit(cls, mols: list[Chem.Mol] | Chem.Mol, device: str = "cpu") -> "ConformerBatch":
         if isinstance(mols, Chem.Mol):
             mols = [mols]
 
@@ -70,14 +69,14 @@ class ConformerBatch(Batch):
                 conformers.append(Conformer.from_rdkit(mol, conformer))
                 molecule_idxs += [i] * mol.GetNumAtoms()
 
-        batch = cls.from_data_list(conformers)
+        batch = cls.from_data_list(conformers, device=device)
         batch.molecule_idxs = torch.tensor(molecule_idxs, dtype=cls.molecule_idx_dtype)
         return batch
 
     @classmethod
-    def from_ase(cls, atoms_list: list[Atoms]) -> "ConformerBatch":
+    def from_ase(cls, atoms_list: list[Atoms], device: str = "cpu") -> "ConformerBatch":
         conformers = [Conformer.from_ase(a) for a in atoms_list]
-        return cls.from_data_list(conformers)
+        return cls.from_data_list(conformers, device=device)
 
     @property
     def n_molecules(self) -> int:
