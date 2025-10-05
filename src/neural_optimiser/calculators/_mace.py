@@ -23,22 +23,15 @@ class MACECalculator(Calculator):
                 "torch-cluster is not installed. Run `uv pip install torch-cluster` to install."
             )
 
-        self.model = torch.load(f=model_paths, map_location=device, weights_only=False)
         self.device = device
-
-        for p in self.model.parameters():
-            p.requires_grad = False
-        self.model.eval()
-
-        self.model.to(device)
+        self.model = torch.load(f=model_paths, map_location=device, weights_only=False)
+        self.model.requires_grad_(False).eval().to(device)
 
         self._z_table = AtomicNumberTable([int(z) for z in self.model.atomic_numbers])
 
     def _calculate(self, batch: Data | Batch) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute energies and forces for a batch of conformers using the MACE model."""
-        atomic_data = self.to_atomic_data(
-            batch=batch,
-        )
+        atomic_data = self.to_atomic_data(batch)
         output = self.model(atomic_data, compute_force=True)
         return output["energy"], output["forces"]
 
@@ -47,24 +40,21 @@ class MACECalculator(Calculator):
         batch: Data | Batch,
         max_num_neighbors: int | None = 32,
     ) -> Batch:
-        """Convert a ConformerBatch into a torch_geometric Batch of Data with MACE fields."""
-        model_dtype = next(self.model.parameters()).dtype
+        """Convert a ConformerBatch into a torch_geometric Batch[Data] with MACE fields."""
+        self._validate_batch(batch)
 
-        # Validate required attributes
-        if not (hasattr(batch, "pos") and hasattr(batch, "batch") and hasattr(batch, "atom_types")):
-            raise AttributeError("Batch must have `pos`, `atom_types` and `batch` attributes.")
-
-        # Handle empty batch
         if batch.pos.numel() == 0:
             return Batch()
 
-        # One-hot features from atomic numbers using the model's z-table
-        node_indices_all = self.atomic_numbers_to_indices(
+        model_dtype = next(self.model.parameters()).dtype
+
+        # Node features: one-hot encodings from atomic numbers
+        node_indices = self.atomic_numbers_to_indices(
             batch.atom_types, z_table=self._z_table
         )  # [N]
-        one_hot_atoms = self.to_one_hot(node_indices_all, num_classes=len(self._z_table))  # [N, Z]
+        one_hot_atoms = self.to_one_hot(node_indices, num_classes=len(self._z_table))  # [N, Z]
 
-        # Graph split information
+        # Graph partition info
         n_graphs = batch.n_conformers
         num_atoms_per_graph = torch.bincount(batch.batch, minlength=n_graphs)  # [G]
         cumsum = torch.cumsum(num_atoms_per_graph, dim=0)  # [G]
@@ -72,7 +62,7 @@ class MACECalculator(Calculator):
             [torch.zeros(1, dtype=torch.long, device=self.device), cumsum[:-1]], dim=0
         )  # [G]
 
-        # Build neighborhoods for full batch
+        # Neighborhoods for full batch
         full_edge_index = radius_graph(
             x=batch.pos,
             r=float(self.model.r_max),
@@ -80,30 +70,19 @@ class MACECalculator(Calculator):
             loop=False,
             max_num_neighbors=max_num_neighbors,
         )  # [2, E]
-
-        # Edge graph ids (radius_graph respects batch, but used for slicing)
         edge_graph = batch.batch[full_edge_index[0]]
 
         # Per-graph slices
         split_points = cumsum[:-1].tolist()
-        coords_list = torch.tensor_split(batch.pos, split_points, dim=0)
-        one_hot_list = torch.tensor_split(one_hot_atoms, split_points, dim=0)
+        coords_per_graph = torch.tensor_split(batch.pos, split_points, dim=0)
+        feats_per_graph = torch.tensor_split(one_hot_atoms, split_points, dim=0)
 
-        # Resolve head index
-        heads = self.model.heads
-        if heads is None:
-            heads = ["Default"]
-        elif isinstance(heads, str):
-            heads = [heads]
-        head_name = heads[0] if len(heads) == 1 else heads[-1]
-        head_idx = heads.index(head_name) if head_name in heads else len(heads) - 1
-        head_tensor = torch.tensor(head_idx, dtype=torch.long, device=self.device)
+        head_tensor = self._resolve_head_tensor(device=self.device)
 
         data_list: list[Data] = []
         for g in range(n_graphs):
-            # Node slices
-            coords_g = coords_list[g]
-            feats_g = one_hot_list[g].to(dtype=model_dtype)
+            coords_g = coords_per_graph[g]
+            feats_g = feats_per_graph[g].to(dtype=model_dtype)
 
             # Edge slice and local reindexing
             mask_g = edge_graph == g
@@ -112,11 +91,11 @@ class MACECalculator(Calculator):
             e_num = local_edge_index.size(1)
 
             # Shifts/cell (no PBC)
-            zeros_e3 = torch.zeros(e_num, 3, dtype=model_dtype, device=self.device)
-            zero_cell = torch.zeros(3, 3, dtype=model_dtype, device=self.device)
+            zeros_e3 = torch.zeros((e_num, 3), dtype=model_dtype, device=self.device)
+            zero_cell = torch.zeros((3, 3), dtype=model_dtype, device=self.device)
 
             # Edge vectors/lengths
-            if e_num > 0:
+            if e_num:
                 src, dst = local_edge_index[0], local_edge_index[1]
                 edge_vectors = coords_g[dst] - coords_g[src]
                 edge_lengths = torch.linalg.norm(edge_vectors, dim=-1)
@@ -124,20 +103,41 @@ class MACECalculator(Calculator):
                 edge_vectors = torch.zeros((0, 3), dtype=coords_g.dtype, device=self.device)
                 edge_lengths = torch.zeros((0,), dtype=coords_g.dtype, device=self.device)
 
-            data_g = Data(
-                edge_index=local_edge_index,
-                node_attrs=feats_g,
-                positions=coords_g,
-                shifts=zeros_e3,
-                unit_shifts=zeros_e3.clone(),
-                cell=zero_cell,
-                head=head_tensor,
-                edge_vectors=edge_vectors,
-                edge_lengths=edge_lengths,
+            data_list.append(
+                Data(
+                    edge_index=local_edge_index,
+                    node_attrs=feats_g,
+                    positions=coords_g,
+                    shifts=zeros_e3,
+                    unit_shifts=zeros_e3.clone(),
+                    cell=zero_cell,
+                    head=head_tensor,
+                    edge_vectors=edge_vectors,
+                    edge_lengths=edge_lengths,
+                )
             )
-            data_list.append(data_g)
 
         return Batch.from_data_list(data_list)
+
+    def _resolve_head_tensor(self, device: str) -> torch.Tensor:
+        heads = self.model.heads
+        if heads is None:
+            heads = ["Default"]
+        elif isinstance(heads, str):
+            heads = [heads]
+
+        head_name = heads[0] if len(heads) == 1 else heads[-1]
+        head_idx = heads.index(head_name) if head_name in heads else len(heads) - 1
+        return torch.tensor(head_idx, dtype=torch.long, device=device)
+
+    @staticmethod
+    def _validate_batch(batch: Data | Batch) -> None:
+        required = ("pos", "batch", "atom_types")
+        missing = [name for name in required if not hasattr(batch, name)]
+        if missing:
+            raise AttributeError(
+                f"Batch must have attributes: {', '.join(required)}. Missing: {missing}"
+            )
 
     @staticmethod
     def atomic_numbers_to_indices(
