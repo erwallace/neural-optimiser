@@ -24,7 +24,7 @@ class BFGS(Optimiser):
     def step(self, forces: torch.Tensor) -> None:
         """Batched BFGS update across all conformers."""
         ptr = self.batch.ptr
-        N = batch.n_conformers
+        N = self.batch.n_conformers
 
         # Per-conformer sizes
         Ns = [(ptr[i + 1] - ptr[i]).item() for i in range(N)]  # atoms per conformer
