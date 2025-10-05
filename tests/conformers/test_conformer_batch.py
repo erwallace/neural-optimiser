@@ -1,7 +1,6 @@
-# python
 import numpy as np
 import torch
-from ase_bfgs_batched.conformers import Conformer, ConformerBatch
+from neural_optimiser.conformers import Conformer, ConformerBatch
 from rdkit import Chem
 
 

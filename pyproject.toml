@@ -1,6 +1,6 @@
 [project]
-name = "ase-bfgs-batched"
-description = "Batched optimisation using the Atomic Simulation Environment implementation of the BFGS algorithm."
+name = "neural-optimiser"
+description = "Batched optimisation algorithms using the neural network potentials."
 authors = [{name = "Ewan Wallace", email = "erw@wallace2.com"}]
 license = "Apache-2.0"
 dynamic = ["version"]
@@ -11,12 +11,7 @@ dependencies = [
     "rdkit",
     "ase",
     "numpy",
-    "pandas",
-    "omegaconf",
-    "hydra-core",
-    "universal-pathlib",
     "loguru",
-    "rich",
     "torch_geometric",
     "torch",
 ]

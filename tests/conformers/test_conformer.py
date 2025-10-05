@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 import torch
-from ase_bfgs_batched.conformers import Conformer
+from neural_optimiser.conformers import Conformer
 
 
 def test_from_ase_and_to_ase_roundtrip(atoms):

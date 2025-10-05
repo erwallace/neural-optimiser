@@ -3,7 +3,7 @@ from ase import Atoms
 from rdkit import Chem
 from torch_geometric.data import Batch
 
-from ase_bfgs_batched.conformers import Conformer
+from neural_optimiser.conformers import Conformer
 
 
 class ConformerBatch(Batch):

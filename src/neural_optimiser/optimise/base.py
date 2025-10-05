@@ -38,6 +38,8 @@ class Optimiser:
         self._converged: bool = False
         self._n_fmax: float = 0.0
 
+        torch.manual_seed(0)  # TODO: remove (dummy forces)
+
         logger.debug(
             "Initialized {}(max_step={}, steps={}, fmax={}, fexit={})",
             self.__class__.__name__,
@@ -196,7 +198,7 @@ class Optimiser:
     def _forces(self) -> torch.Tensor:
         """Request forces from the attached calculator and validate shape/dtype."""
         # f = self.calculator.forces(self.batch)  # TODO: uncomment
-        f = torch.rand_like(self.batch.pos) / (5 * self.nsteps + 1)  # Dummy forces for testing
+        f = torch.rand_like(self.batch.pos)  # / (5 * self.nsteps + 1)  # Dummy forces for testing
         if not isinstance(f, torch.Tensor):
             raise TypeError("calculator.forces(batch) must return a torch.Tensor.")
         if f.shape != self.batch.pos.shape:
@@ -293,8 +295,6 @@ class Optimiser:
         """
         frames = int(self.batch.pos_dt.shape[0])
         logger.debug("pos_dt assembled with {} frames.", frames)
-
-        # pos_min = self.batch.pos_dt[-1]
 
         # Filter pos_dt using converged_steps to give converged geometries
         converged_steps_by_atom = self.batch.converged_step[self.batch.batch]
