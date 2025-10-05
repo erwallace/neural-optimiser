@@ -12,7 +12,7 @@ dependencies = [
     "ase",
     "numpy",
     "loguru",
-    "universal-pathlib",
+    "univeral-pathlib",
     "torch_geometric",
     "torch",
 ]
@@ -22,10 +22,6 @@ dev = [
     "pytest",
     "pytest-cov",
     "pre-commit",
-]
-calcs = [
-    "mace-torch",
-    "torch-cluster",
 ]
 
 [project.urls]
