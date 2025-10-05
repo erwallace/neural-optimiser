@@ -1,6 +1,5 @@
 import torch
 import torch.nn.functional as F
-from mace.tools.utils import AtomicNumberTable
 from torch_geometric.data import Batch, Data
 from torch_geometric.nn import radius_graph
 
@@ -142,7 +141,7 @@ class MACECalculator(Calculator):
     @staticmethod
     def atomic_numbers_to_indices(
         atomic_numbers_tensor: torch.Tensor,
-        z_table: AtomicNumberTable,
+        z_table: "AtomicNumberTable",  # noqa: F821
     ) -> torch.Tensor:
         """
         Map atomic numbers to z_table indices using a vectorized torch operation.
