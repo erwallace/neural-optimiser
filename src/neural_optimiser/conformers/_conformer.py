@@ -147,9 +147,9 @@ class Conformer(Data):
     def plot(self, dim: int = 2) -> None:
         """Plot the conformer in 2D or 3D."""
         if dim == 2:
-            self._plot_2d()
+            return self._plot_2d()
         elif dim == 3:
-            self._plot_3d()
+            return self._plot_3d()
         else:
             raise ValueError("dim must be 2 or 3")
 
