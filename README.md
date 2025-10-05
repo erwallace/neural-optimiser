@@ -28,12 +28,13 @@ uv run pre-commit install
 
 ## Quick Start
 
+All of the code below and more is available in the [tutorial](notebooks/tutorial.ipynb).
+
 ### Run a Batched BFGS Optimisation
 
 This example uses `neural_optimiser.optimise._bfgs.BFGS`, and a dummy calculator, `neural_optimiser.calculators._random.RandomCalculator`.
 
 ```python
-import torch
 from ase.build import molecule
 
 from neural_optimiser.optimise import BFGS
@@ -45,13 +46,14 @@ atoms_list = [molecule("H2O"), molecule("NH3"), molecule("CH4")]
 batch = ConformerBatch.from_ase(atoms_list, device="cpu")
 
 # Configure optimiser and attach a calculator that provides forces
-optimiser = BFGS(steps=200, fmax=0.05, fexit=500.0, max_step=0.04)
+optimiser = BFGS(steps=10, fmax=0.05, fexit=500.0, max_step=0.04)
 optimiser.calculator = RandomCalculator()
 
 # Run optimisation
 converged = optimiser.run(batch)
-print("Converged:", converged)
-print("Steps:", optimiser.nsteps)
+print("All Converged:", converged)
+for i, (conv, nsteps) in enumerate(zip(batch.converged, batch.converged_step)):
+    print(f"Conformer {i}: Converged: {conv}, On step {nsteps}")
 
 # Trajectory [T, N, 3] and converged coordinates [N, 3]
 print("pos_dt shape:", tuple(batch.pos_dt.shape))
@@ -90,35 +92,80 @@ class MyCalculator(Calculator):
 
 ### Data Containers
 
-**neural_optimiser.conformers._conformer.Conformer**
+**Conformer**
 
-- Fields
-  - `atom_types`: Long tensor [n_atoms]
-  - `pos`: Float tensor [n_atoms, 3]
-  - `smiles`: optional string
-- Constructors
-  - `from_ase(Atoms)`
-  - `from_rdkit(Mol[, Conformer])`
-- Converters
-  - `to_ase()` -> `Atoms`
-  - `to_rdkit()` -> `Mol` with one 3D conformer
+Molecules with 3D geometries are stored as `neural_optimiser.conformers._conformer.Conformer` objects.
 
-**neural_optimiser.conformers._conformer_batch.ConformerBatch**
+```python
+from ase.build import molecule
+from rdkit import Chem
+from rdkit.Chem import AllChem
+from neural_optimiser.conformers import Conformer
 
-Extends torch-geometric Batch and groups many conformers.
-- Constructors
-  - `from_ase(list[Atoms])`
-  - `from_rdkit(list[Mol] | Mol)`
-  - `from_data_list(list[Conformer])`
-- Properties
-  - `n_molecules`
-  - `n_conformers`
-  - `n_atoms`
-- Slicing
-  - `conformer(i)` -> Conformer view referencing the i-th conformer’s atoms
-- Additional indices
-  - `batch`: per-atom conformer index
-  - `molecule_idxs`: per-atom parent molecule index
+# From ASE
+atoms = molecule("H2O")
+conf1 = Conformer.from_ase(atoms, smiles="O")
+
+print(type(conf1).__name__)
+print("atom_types:", conf1.atom_types.shape)  # [n_atoms]
+print("pos:", conf1.pos.shape)                # [n_atoms, 3]
+print("smiles:", conf1.smiles)
+
+# Convert back to ASE
+atoms2 = conf1.to_ase()
+print("ASE atoms:", atoms2.get_chemical_formula(), atoms2.positions.shape)
+
+# From RDKit
+mol = Chem.MolFromSmiles("CCO")
+mol = Chem.AddHs(mol)
+AllChem.EmbedMolecule(mol, AllChem.ETKDG())
+conf2 = Conformer.from_rdkit(mol)
+
+# Convert back to RDKit (returns a Mol with one 3D conformer)
+mol2 = conf2.to_rdkit()
+print("RDKit confs:", mol2.GetNumConformers())
+```
+
+**ConformerBatch**
+
+Different molecules, or conformers of the same molecule (or both) can be stored in a `neural_optimiser.conformers._conformer_batch.ConformerBatch` object.
+
+```python
+from ase.build import molecule
+from rdkit import Chem
+from rdkit.Chem import AllChem
+from neural_optimiser.conformers import Conformer, ConformerBatch
+
+# Build from ASE
+atoms_list = [molecule("H2O"), molecule("NH3"), molecule("CH4")]
+batch_ase = ConformerBatch.from_ase(atoms_list, device="cpu")
+print("ASE batch:", batch_ase.n_molecules, batch_ase.n_conformers, batch_ase.n_atoms)
+
+# Slice a single conformer view
+conf0 = batch_ase.conformer(0)
+print("conf0 pos:", conf0.pos.shape)
+
+# Indices available on the batch (per-atom)
+print("batch index shape:", batch_ase.batch.shape)
+print("molecule_idxs shape:", batch_ase.molecule_idxs.shape)
+
+# Build from RDKit (multiple conformers per molecule also supported)
+def rdkit_with_coords(smiles: str):
+    m = Chem.MolFromSmiles(smiles)
+    m = Chem.AddHs(m)
+    AllChem.EmbedMolecule(m, AllChem.ETKDG())
+    return m
+
+mol_list = [rdkit_with_coords("O"), rdkit_with_coords("CCO")]
+batch_rd = ConformerBatch.from_rdkit(mol_list, device="cpu")
+print("RDKit batch:", batch_rd.n_molecules, batch_rd.n_conformers, batch_rd.n_atoms)
+
+# Build from a list of Conformer objects
+c1 = Conformer.from_ase(molecule("H2O"))
+c2 = Conformer.from_ase(molecule("NH3"))
+batch_list = ConformerBatch.from_data_list([c1, c2], device="cpu")
+print("Data list batch:", batch_list.n_molecules, batch_list.n_conformers, batch_list.n_atoms)
+```
 
 ## Testing
 ```bash
