@@ -30,7 +30,7 @@ uv run pre-commit install
 
 All of the code below and more is available in the [tutorial](notebooks/tutorial.ipynb).
 
-### Run a Batched BFGS Optimisation
+### Run a Simple Batched BFGS Optimisation
 
 This example uses `neural_optimiser.optimise._bfgs.BFGS`, and a dummy calculator, `neural_optimiser.calculators._random.RandomCalculator`.
 
@@ -64,6 +64,41 @@ print("pos_min shape:", tuple(batch.pos_min.shape))
 - `fmax` triggers convergence per conformer using the maximum per-atom force norm,. Ether `fmax` or `steps` must be specified.
 - `fexit` triggers early exit if all non-converged conformers exceed the threshold.
 - Trajectories are accumulated in memory as `batch.pos_dt`; converged geometries are indexed into `batch.pos_min` (final positions are returned for non-converged conformers). See `neural_optimiser.optimise.base.Optimiser` for more details.
+
+### Run a Larger BFGS Optimisation using the ConformerDataLoader
+
+For large datasets all your conformers may not fit in memory at once. In this case you can use the `neural_optimiser.datasets.base.ConformerDataLoader` to stream conformers in mini-batches.
+
+```python
+from rdkit import Chem
+from rdkit.Chem import AllChem
+
+from neural_optimiser.conformers import Conformer, ConformerBatch
+from neural_optimiser.datasets.base import ConformerDataset, ConformerDataLoader
+from neural_optimiser.optimise import BFGS
+from neural_optimiser.calculators import RandomCalculator
+
+# Build a pool of conformers from RDKit molecules
+smiles_list = ["CCO", "CC", "CCN"]
+mols = []
+for smiles in smiles_list:
+    m = Chem.AddHs(Chem.MolFromSmiles(smiles))
+    AllChem.EmbedMultipleConfs(m, numConfs=10, useExpTorsionAnglePrefs=True, useBasicKnowledge=True)
+    mols.append(m)
+
+big_batch = ConformerBatch.from_rdkit(mols)  # creates one Conformer per RDKit conformer
+
+# Dataset/DataLoader -> yields ConformerBatch
+dataset = ConformerDataset([big_batch.conformer(i) for i in range(big_batch.n_conformers)])
+dataloader = ConformerDataLoader(dataset, batch_size=8, device="cpu", shuffle=True, num_workers=0)
+
+# Configure optimiser and attach a calculator that provides forces
+optimiser = BFGS(steps=10, fmax=0.05, fexit=500.0, max_step=0.04)
+optimiser.calculator = RandomCalculator()
+
+for batch in dataloader:
+    optimiser.run(batch)
+```
 
 ### Using Your Own Calculator
 
