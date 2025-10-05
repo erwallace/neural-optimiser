@@ -1,0 +1,75 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: neural-optimiser CI (cpu tests only)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+env:
+  UV_VERSION: "0.8"
+  UV_LINK_MODE: "copy"
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        fetch-tags: true
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.11"
+
+    - name: Disk cleanup (pre-setup)
+      run: |
+        df -h
+        sudo apt-get clean || true
+        sudo rm -rf /var/lib/apt/lists/* || true
+        sudo rm -rf /tmp/* /var/tmp/* || true
+        rm -rf ~/.cache/uv/* 2>/dev/null || true
+        df -h
+
+    - name: Install OS deps
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git curl
+
+    - name: Install uv and create venv
+      run: |
+        python -m pip install -U pip
+        python -m pip install "uv==${{ env.UV_VERSION }}"
+        uv --version
+        uv venv
+        uv pip install -e ".[dev]"
+        uv run pre-commit install
+        df -h
+
+    - name: Lint with pre-commit
+      run: |
+        uv run pre-commit run --all-files
+
+    - name: CPU unit tests
+      run: |
+        uv run pytest tests
+
+    - name: Build sdist/wheel
+      run: |
+        uv pip install -U build
+        rm -rf ./*.egg-info */*.egg-info */*/*.egg-info src/*.egg-info
+        uv run python -m build
+
+    - name: Check metadata
+      run: |
+        uv pip install -U twine readme_renderer[md]
+        uv run twine check dist/*

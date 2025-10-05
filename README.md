@@ -8,7 +8,15 @@ Batched optimisation algorithms for neural network potential–driven molecular 
 - Trajectory collection per step (`batch.pos_dt`) and converged geometries (`batch.pos_min`).
 - IO methods for RDkit molecules and ASE atoms objects.
 
-## Installation (uv)
+## Installation
+
+### Install from PyPi
+
+```bash
+pip install neural_rotamers
+```
+
+### Install from source (uv)
 Prerequisites: Python 3.11+, PyTorch and torch-geometric compatible with your environment.
 
 Create a virtual environment and install the package:
