@@ -1,7 +1,7 @@
 import torch
 from loguru import logger
 
-from neural_optimiser.optimise import Optimiser
+from neural_optimiser.optimise.base import Optimiser
 
 
 class BFGS(Optimiser):
@@ -136,7 +136,7 @@ if __name__ == "__main__":
 
     start = timer()
     optimiser = BFGS(steps=2000, fmax=0.05, fexit=500.0)
-    optimiser.calculator = RandomCalculator(device=device)
+    optimiser.calculator = RandomCalculator()
     converged = optimiser.run(batch)
     end = timer()
     t1 = end - start
