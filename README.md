@@ -13,7 +13,7 @@ Batched optimisation algorithms for neural network potential–driven molecular 
 ### Install from PyPi
 
 ```bash
-pip install neural_rotamers
+pip install neural-optimiser
 ```
 
 ### Install from source (uv)
