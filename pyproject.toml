@@ -1,6 +1,6 @@
 [project]
 name = "neural-optimiser"
-description = "Batched optimisation algorithms using the neural network potentials."
+description = "Batched optimisation algorithms for neural network potential driven molecular dynamics."
 authors = [{name = "Ewan Wallace", email = "erw@wallace2.com"}]
 license = "Apache-2.0"
 dynamic = ["version"]

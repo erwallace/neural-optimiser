@@ -122,7 +122,8 @@ class BFGS(Optimiser):
 
 if __name__ == "__main__":
     from ase.build import molecule
-    from ase_bfgs_batched.conformers import ConformerBatch
+
+    from neural_optimiser.conformers import ConformerBatch
 
     atoms_list = [molecule("H2O"), molecule("NH3"), molecule("CH4")] * 10
     batch = ConformerBatch.from_ase(atoms_list)
