@@ -40,7 +40,7 @@ All of the code below and more is available in the [tutorial](notebooks/tutorial
 
 ### Run a Simple Batched BFGS Optimisation
 
-This example uses `neural_optimiser.optimise._bfgs.BFGS`, and a dummy calculator, `neural_optimiser.calculators._random.RandomCalculator`.
+This example uses `neural_optimiser.optimise._bfgs.BFGS`, and a dummy calculator, `neural_optimiser.calculators._rand.RandomCalculator`.
 
 ```python
 from ase.build import molecule
