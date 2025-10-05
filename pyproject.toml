@@ -15,7 +15,6 @@ dependencies = [
     "universal-pathlib",
     "torch_geometric",
     "torch",
-    "torch-cluster",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +25,7 @@ dev = [
 ]
 calcs = [
     "mace-torch",
+    "torch-cluster",
 ]
 
 [project.urls]

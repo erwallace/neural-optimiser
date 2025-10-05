@@ -15,7 +15,6 @@ permissions:
 env:
   UV_VERSION: "0.8"
   UV_LINK_MODE: "copy"
-  TORCH_VERSION: "2.5.1+cpu"
 
 jobs:
   build:
@@ -52,17 +51,9 @@ jobs:
         python -m pip install "uv==${{ env.UV_VERSION }}"
         uv --version
         uv venv
-        # Prefer binary wheels
-        export PIP_PREFER_BINARY=1
-        # Install build tools needed when using --no-build-isolation
-        uv pip install -U setuptools wheel
-        # Install a PyG-supported torch first (CPU wheels)
-        uv pip install --index-url https://download.pytorch.org/whl/cpu "torch==${{ env.TORCH_VERSION }}"
-        # Use PyG extra index so torch-* resolve to wheels; disable build isolation so torch is visible
-        UV_PIP_FLAGS="--no-build-isolation --extra-index-url https://data.pyg.org/whl/torch-${{ env.TORCH_VERSION }}.html"
-        uv pip install $UV_PIP_FLAGS -e .
-        uv pip install $UV_PIP_FLAGS -e ".[dev]"
-        uv pip install $UV_PIP_FLAGS -e ".[calcs]"
+        uv pip install -e .
+        uv pip install -e ".[dev]"
+        uv pip install -e ".[calcs]"
         uv run pre-commit install
         df -h
 
