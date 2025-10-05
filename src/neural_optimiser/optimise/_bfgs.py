@@ -21,6 +21,17 @@ class BFGS(Optimiser):
 
         logger.info("Running BFGS optimiser")
 
+    def _reset_batch_state(self) -> None:
+        """Reset any per-batch state before starting a new batch."""
+        self._H.clear()
+        self._r0.clear()
+        self._f0.clear()
+
+    def run(self, batch):
+        """Reset state and run optimisation on a new batch."""
+        self._reset_batch_state()
+        return super().run(batch)
+
     def step(self, forces: torch.Tensor) -> None:
         """Batched BFGS update across all conformers."""
         ptr = self.batch.ptr
