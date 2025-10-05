@@ -24,7 +24,8 @@ dev = [
     "pre-commit",
 ]
 calcs = [
-    "mace-torch"
+    "mace-torch",
+    "torch-cluster",
 ]
 
 [project.urls]
