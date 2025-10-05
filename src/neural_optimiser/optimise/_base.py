@@ -1,9 +1,11 @@
+from abc import ABC, abstractmethod
+
 import torch
 from loguru import logger
 from torch_geometric.data import Batch, Data
 
 
-class Optimiser:
+class Optimiser(ABC):
     """Optimiser base class with additional exit conditions, operating on a PyG Batch/Data.
 
     - Maintains one Hessian per conformer in the batch.
@@ -37,8 +39,6 @@ class Optimiser:
         self.nsteps: int = 0
         self._converged: bool = False
         self._n_fmax: float = 0.0
-
-        torch.manual_seed(0)  # TODO: remove (dummy forces)
 
         logger.debug(
             "Initialized {}(max_step={}, steps={}, fmax={}, fexit={})",
@@ -139,9 +139,10 @@ class Optimiser:
                 self._finalise_trajectories()
                 return self._converged
 
-    # TODO: missing a decorator?
-    def step(self):
-        raise NotImplementedError(".step() is not implemented in the base optimiser")
+    @abstractmethod
+    def step(self) -> None:
+        """Perform one optimisation step."""
+        ...
 
     # --------------------- utilities ---------------------
 
@@ -197,8 +198,7 @@ class Optimiser:
 
     def _forces(self) -> torch.Tensor:
         """Request forces from the attached calculator and validate shape/dtype."""
-        # f = self.calculator.forces(self.batch)  # TODO: uncomment
-        f = torch.rand_like(self.batch.pos)  # / (5 * self.nsteps + 1)  # Dummy forces for testing
+        e, f = self.calculator.calculate(self.batch)
         if not isinstance(f, torch.Tensor):
             raise TypeError("calculator.forces(batch) must return a torch.Tensor.")
         if f.shape != self.batch.pos.shape:

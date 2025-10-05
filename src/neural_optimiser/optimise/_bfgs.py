@@ -1,6 +1,7 @@
 import torch
-from ase_bfgs_batched.optimise import Optimiser
 from loguru import logger
+
+from neural_optimiser.optimise import Optimiser
 
 
 class BFGS(Optimiser):
@@ -121,19 +122,24 @@ class BFGS(Optimiser):
 
 
 if __name__ == "__main__":
+    from timeit import default_timer as timer
+
     from ase.build import molecule
 
+    from neural_optimiser.calculators import RandomCalculator
     from neural_optimiser.conformers import ConformerBatch
 
-    atoms_list = [molecule("H2O"), molecule("NH3"), molecule("CH4")] * 10
-    batch = ConformerBatch.from_ase(atoms_list)
+    device = "cpu"
 
-    from timeit import default_timer as timer
+    atoms_list = [molecule("H2O"), molecule("NH3"), molecule("CH4")] * 10
+    batch = ConformerBatch.from_ase(atoms_list, device=device)
 
     start = timer()
     optimiser = BFGS(steps=2000, fmax=0.05, fexit=500.0)
-    optimiser.calculator = 0  # Replace with actual calculator implementing forces(batch)
+    optimiser.calculator = RandomCalculator(device=device)
     converged = optimiser.run(batch)
     end = timer()
     t1 = end - start
     print(f"Single BFGS call took {end - start:.2f} seconds.")
+
+    # 30 molecules for 2000 steps with a dummy calculator: ~3.3 seconds
