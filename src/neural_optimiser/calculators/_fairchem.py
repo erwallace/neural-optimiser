@@ -9,15 +9,13 @@ class FAIRChemCalculator(Calculator):
         try:
             from fairchem import FAIRChemCalculator as FAIRChemCalc
         except ImportError:
-            raise ImportError("MACE is not installed. Please install it to use MACECalculator.")
+            raise ImportError(
+                "MACE is not installed. Run `uv pip install fairchem-core` to install."
+            )
         self.calculator = FAIRChemCalc(model_path)
 
     def _calculate(self, batch: Data | Batch) -> tuple[torch.Tensor, torch.Tensor]:
-        atoms = self.to_atomic_data(batch)
-        return self.calculator.calculate(atoms)
+        raise NotImplementedError("FAIRChemCalculator is not yet implemented.")
 
     def to_atomic_data():
-        pass
-
-    def from_atomic_data():
         pass

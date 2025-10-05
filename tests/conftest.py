@@ -1,6 +1,9 @@
 import pytest
 import torch
 from ase.build import molecule
+from neural_optimiser import test_dir
+from neural_optimiser.calculators import MACECalculator
+from neural_optimiser.conformers import ConformerBatch
 from neural_optimiser.optimise.base import Optimiser
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -41,6 +44,11 @@ def atoms2():
     return molecule("NH3")
 
 
+@pytest.fixture
+def batch(atoms):
+    return ConformerBatch.from_ase([atoms], device="cpu")
+
+
 class DummyOptimiser(Optimiser):
     """Minimal concrete optimiser; performs capped steepest-descent steps."""
 
@@ -54,7 +62,7 @@ class DummyOptimiser(Optimiser):
 
 class ZeroCalculator:
     def calculate(self, batch):
-        return 0.0, torch.zeros_like(batch.pos)
+        return torch.zeros(batch.n_conformers), torch.zeros_like(batch.pos)
 
 
 class ConstCalculator:
@@ -62,12 +70,14 @@ class ConstCalculator:
         self.value = float(value)
 
     def calculate(self, batch):
-        return 0.0, torch.full_like(batch.pos, self.value)
+        return torch.zeros(batch.n_conformers), torch.full_like(batch.pos, self.value)
 
 
 class BadShapeCalculator:
     def calculate(self, batch):
-        return 0.0, torch.zeros(batch.pos.shape[0], device=batch.pos.device, dtype=batch.pos.dtype)
+        return torch.zeros(batch.n_conformers), torch.zeros(
+            batch.pos.shape[0], device=batch.pos.device, dtype=batch.pos.dtype
+        )
 
 
 class PerConfConstCalculator:
@@ -81,7 +91,7 @@ class PerConfConstCalculator:
         for i, v in enumerate(self.values):
             mask = batch.batch == i
             f[mask] = v  # broadcasts to 3 components
-        return 0.0, f
+        return torch.zeros(batch.n_conformers), f
 
 
 @pytest.fixture
@@ -113,3 +123,11 @@ def per_conf_const_calculator_factory():
         return PerConfConstCalculator(values)
 
     return _make
+
+
+@pytest.fixture
+def mace_calculator(scope="session"):
+    pytest.importorskip("mace", reason="MACE not installed")
+
+    model_paths = test_dir / "models" / "MACE_SPICE2_NEUTRAL.model"
+    return MACECalculator(model_paths=str(model_paths), device="cpu")

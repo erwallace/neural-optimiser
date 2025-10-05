@@ -91,9 +91,15 @@ class Optimiser(ABC):
 
         # Init per-step trajectory storage directly on batch: [T, N, 3]
         self.batch.pos_dt = self.batch.pos.clone().unsqueeze(dim=0)
+        self.batch.forces_dt = torch.empty(
+            (0, self.n_atoms, 3), device=self.device, dtype=self.dtype
+        )
+        self.batch.energies_dt = torch.empty(
+            (0, self.batch.n_conformers), device=self.device, dtype=self.dtype
+        )
 
         # Initial force evaluation
-        forces = self._forces()
+        energies, forces = self._forces()
         fmax_per_conf = self._per_conformer_max_force(forces)
         logger.debug(
             "Initial per-conformer fmax: min={:.6f}, max={:.6f}",
@@ -118,13 +124,13 @@ class Optimiser(ABC):
 
             # Append current positions as a new frame to batch.pos_dt
             self.batch.pos_dt = torch.cat(
-                (self.batch.pos_dt, self.batch.pos.detach().clone().unsqueeze(0)),
+                (self.batch.pos_dt, self.batch.pos.unsqueeze(0)),
                 dim=0,
             )
             self.nsteps += 1
             logger.debug("Completed step {}.", self.nsteps)
 
-            forces = self._forces()
+            energies, forces = self._forces()
             fmax_per_conf = self._per_conformer_max_force(forces)
             logger.debug(
                 "Step {} per-conformer fmax: min={:.6f}, max={:.6f}",
@@ -196,19 +202,16 @@ class Optimiser(ABC):
         for i in range(self.batch.n_conformers):
             yield i, (int(self.batch.ptr[i].item()), int(self.batch.ptr[i + 1].item()))
 
-    def _forces(self) -> torch.Tensor:
-        """Request forces from the attached calculator and validate shape/dtype."""
+    def _forces(self) -> tuple[torch.Tensor, torch.Tensor]:
+        """Request energies and forces from the attached calculator."""
         e, f = self.calculator.calculate(self.batch)
-        if not isinstance(f, torch.Tensor):
-            raise TypeError("calculator.forces(batch) must return a torch.Tensor.")
-        if f.shape != self.batch.pos.shape:
-            raise ValueError(
-                f"forces shape must match pos shape; "
-                f"got {tuple(f.shape)} vs {tuple(self.batch.pos.shape)}"
-            )
-        out = f.to(self.device, dtype=self.dtype)
-        logger.debug("Forces computed with shape {} and dtype {}.", tuple(out.shape), out.dtype)
-        return out
+
+        self.batch.energies_dt = torch.cat((self.batch.energies_dt, e.unsqueeze(0)), dim=0)
+        self.batch.forces_dt = torch.cat((self.batch.forces_dt, f.unsqueeze(0)), dim=0)
+
+        logger.debug("Forces computed with shape {} and dtype {}.", tuple(f.shape), f.dtype)
+        logger.debug("Energies computed with shape {} and dtype {}.", tuple(e.shape), e.dtype)
+        return e, f
 
     def _per_conformer_max_force(self, forces: torch.Tensor) -> torch.Tensor:
         """Compute per-conformer max |F|.
