@@ -24,7 +24,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/prescient-design/StrainRelief"
+Homepage = "https://github.com/erwallace/neural-optimiser"
 
 [tool.setuptools.packages.find]
 where = ["src"]
