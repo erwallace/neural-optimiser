@@ -97,6 +97,16 @@ class Conformer(Data):
             **kwargs,
         )
 
+    @property
+    def n_atoms(self) -> int:
+        """Number of atoms in the conformer."""
+        return self.pos.size(0)
+
+    @property
+    def n_conformers(self) -> int:
+        """Number of conformers (needed for Optimiser compatibility)."""
+        return 1
+
     def to_ase(self) -> Atoms:
         """Convert to ASE Atoms."""
         numbers = self.atom_types.detach().cpu().numpy().astype(int)
