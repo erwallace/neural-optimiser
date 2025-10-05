@@ -12,6 +12,7 @@ dependencies = [
     "ase",
     "numpy",
     "loguru",
+    "universal-pathlib",
     "torch_geometric",
     "torch",
 ]
