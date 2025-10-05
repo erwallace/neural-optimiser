@@ -1,6 +1,9 @@
 import pytest
 import torch
 from ase.build import molecule
+from neural_optimiser import test_dir
+from neural_optimiser.calculators import MACECalculator
+from neural_optimiser.conformers import ConformerBatch
 from neural_optimiser.optimise.base import Optimiser
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -39,6 +42,11 @@ def atoms():
 @pytest.fixture
 def atoms2():
     return molecule("NH3")
+
+
+@pytest.fixture
+def batch(atoms):
+    return ConformerBatch.from_ase([atoms], device="cpu")
 
 
 class DummyOptimiser(Optimiser):
@@ -113,3 +121,11 @@ def per_conf_const_calculator_factory():
         return PerConfConstCalculator(values)
 
     return _make
+
+
+@pytest.fixture
+def mace_calculator(scope="session"):
+    pytest.importorskip("mace", reason="MACE not installed")
+
+    model_paths = test_dir / "models" / "MACE_SPICE2_NEUTRAL.model"
+    return MACECalculator(model_paths=str(model_paths), device="cpu")
