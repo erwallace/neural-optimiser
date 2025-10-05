@@ -8,6 +8,8 @@ from neural_optimiser.calculators.base import Calculator
 
 
 class MACECalculator(Calculator):
+    """Calculator using a MACE model for energy and force predictions."""
+
     def __init__(self, model_paths: str, device: str = "cpu"):
         try:
             from mace.tools.utils import AtomicNumberTable

@@ -25,8 +25,3 @@ class Calculator(ABC):
     def to_atomic_data():
         """Convert to AtomicData format compatible with ML model used."""
         ...
-
-    @abstractmethod
-    def from_atomic_data():
-        """Convert from AtomicData format compatible with ML model used."""
-        ...

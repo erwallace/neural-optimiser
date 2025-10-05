@@ -19,7 +19,3 @@ class RandomCalculator(Calculator):
     def to_atomic_data():
         """AtomicData not used."""
         pass
-
-    def from_atomic_data():
-        """AtomicData not used."""
-        pass
