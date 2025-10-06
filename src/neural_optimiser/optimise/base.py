@@ -41,12 +41,8 @@ class Optimiser(ABC):
         self._n_fmax: float = 0.0
 
         logger.debug(
-            "Initialized {}(max_step={}, steps={}, fmax={}, fexit={})",
-            self.__class__.__name__,
-            max_step,
-            steps,
-            fmax,
-            fexit,
+            f"Initialized {self.__class__.__name__}(max_step={max_step}, steps={steps}, "
+            f"fmax={fmax}, fexit={fexit})"
         )
 
         if self.steps == -1 and self.fmax is None:
@@ -66,19 +62,14 @@ class Optimiser(ABC):
         self.device = batch.pos.device
         self.dtype = batch.pos.dtype
         self.n_atoms = batch.n_atoms
+        self.n_confs = batch.n_conformers
         self.batch = batch
 
         self._check_batch()
 
         logger.info(
-            "Starting {}: nconf={}, natoms={}, steps={}, fmax={}, fexit={}, max_step={}",
-            self.__class__.__name__,
-            self.batch.n_conformers,
-            self.n_atoms,
-            self.steps,
-            self.fmax,
-            self.fexit,
-            self.max_step,
+            f"Starting {self.__class__.__name__}: nconf={self.n_confs}, natoms={self.n_atoms}, "
+            f"steps={self.steps}, fmax={self.fmax}, fexit={self.fexit}, max_step={self.max_step}"
         )
         return self._run()
 
@@ -95,17 +86,12 @@ class Optimiser(ABC):
             (0, self.n_atoms, 3), device=self.device, dtype=self.dtype
         )
         self.batch.energies_dt = torch.empty(
-            (0, self.batch.n_conformers), device=self.device, dtype=self.dtype
+            (0, self.n_confs), device=self.device, dtype=self.dtype
         )
 
         # Initial force evaluation
         energies, forces = self._forces()
         fmax_per_conf = self._per_conformer_max_force(forces)
-        logger.debug(
-            "Initial per-conformer fmax: min={:.6f}, max={:.6f}",
-            float(fmax_per_conf.min().item()),
-            float(fmax_per_conf.max().item()),
-        )
 
         # Update per-conformer converged mask (no step index recorded yet)
         self._update_convergence(fmax_per_conf, after_step=False)
@@ -113,7 +99,7 @@ class Optimiser(ABC):
         # Exit checks before any step
         if self._should_exit(fmax_per_conf, after_step=False):
             logger.info(
-                "Exiting before any step: converged={}, nsteps={}", self._converged, self.nsteps
+                f"Exiting before any step: converged={self._converged}, nsteps={self.nsteps}"
             )
             self._finalise_trajectories()
             return self._converged
@@ -128,20 +114,13 @@ class Optimiser(ABC):
                 dim=0,
             )
             self.nsteps += 1
-            logger.debug("Completed step {}.", self.nsteps)
 
             energies, forces = self._forces()
             fmax_per_conf = self._per_conformer_max_force(forces)
-            logger.debug(
-                "Step {} per-conformer fmax: min={:.6f}, max={:.6f}",
-                self.nsteps,
-                float(fmax_per_conf.min().item()),
-                float(fmax_per_conf.max().item()),
-            )
 
             # Update convergence and exit checks after step (record step index)
             if self._should_exit(fmax_per_conf, after_step=True):
-                logger.info("Exiting after step {}: converged={}", self.nsteps, self._converged)
+                logger.info(f"Exiting after step {self.nsteps}: converged={self._converged}")
                 self._finalise_trajectories()
                 return self._converged
 
@@ -172,34 +151,28 @@ class Optimiser(ABC):
         if not hasattr(self.batch, "ptr"):
             self.batch.ptr = torch.tensor([0, self.n_atoms], device=self.device, dtype=torch.long)
             self.batch.batch = torch.zeros(self.n_atoms, device=self.device, dtype=torch.long)
-            logger.debug("Synthesized ptr/batch for single Data with natoms={}.", self.n_atoms)
 
         # Init per-conformer convergence tracking
-        nconf = self.batch.n_conformers
         if (
             not hasattr(self.batch, "converged")
             or self.batch.converged is None
-            or self.batch.converged.numel() != nconf
+            or self.batch.converged.numel() != self.n_confs
         ):
-            self.batch.converged = torch.zeros(nconf, dtype=torch.bool, device=self.device)
-            logger.debug("Initialized batch.converged with shape [{}].", nconf)
+            self.batch.converged = torch.zeros(self.n_confs, dtype=torch.bool, device=self.device)
         if (
             not hasattr(self.batch, "converged_step")
             or self.batch.converged_step is None
-            or self.batch.converged_step.numel() != nconf
+            or self.batch.converged_step.numel() != self.n_confs
         ):
             self.batch.converged_step = torch.full(
-                (nconf,), -1, dtype=torch.long, device=self.device
+                (self.n_confs,), -1, dtype=torch.long, device=self.device
             )
-            logger.debug("Initialized batch.converged_step with shape [{}].", nconf)
-
-        logger.debug("Batch check complete: natoms={}, nconf={}.", self.n_atoms, nconf)
 
     def _iter_conformer_slices(self):
         """Yield (idx, (start, end)) atom index slices for each conformer.
 
         Note: slices update batch.pos inplace. Masks create copies, so do not work here."""
-        for i in range(self.batch.n_conformers):
+        for i in range(self.n_confs):
             yield i, (int(self.batch.ptr[i].item()), int(self.batch.ptr[i + 1].item()))
 
     def _forces(self) -> tuple[torch.Tensor, torch.Tensor]:
@@ -209,8 +182,6 @@ class Optimiser(ABC):
         self.batch.energies_dt = torch.cat((self.batch.energies_dt, e.unsqueeze(0)), dim=0)
         self.batch.forces_dt = torch.cat((self.batch.forces_dt, f.unsqueeze(0)), dim=0)
 
-        logger.debug("Forces computed with shape {} and dtype {}.", tuple(f.shape), f.dtype)
-        logger.debug("Energies computed with shape {} and dtype {}.", tuple(e.shape), e.dtype)
         return e, f
 
     def _per_conformer_max_force(self, forces: torch.Tensor) -> torch.Tensor:
@@ -221,7 +192,7 @@ class Optimiser(ABC):
         """
         norms = torch.linalg.vector_norm(forces, dim=1)
         vals = []
-        for i in range(self.batch.n_conformers):
+        for i in range(self.n_confs):
             vals.append(norms[self.batch.batch == i].max())
         out = torch.stack(vals)
         return out
@@ -239,12 +210,6 @@ class Optimiser(ABC):
         newly_converged = (~self.batch.converged) & (fmax_per_conf < target)
         if newly_converged.any():
             idxs = torch.nonzero(newly_converged, as_tuple=False).view(-1)
-            logger.info(
-                "Newly converged conformers ({}): {} at step {}.",
-                idxs.numel(),
-                idxs.tolist(),
-                self.nsteps if after_step else "pre-step",
-            )
             # Update mask
             self.batch.converged[newly_converged] = True
             # Record step index only after a step has been taken
@@ -262,10 +227,16 @@ class Optimiser(ABC):
         # Update per-conformer convergence bookkeeping
         self._update_convergence(fmax_per_conf, after_step=after_step)
 
+        if self.nsteps % 10 == 0:
+            logger.info(
+                f"Step {self.nsteps}: {int(self.batch.converged.sum().item())}/{self.n_confs} "
+                "conformers converged."
+            )
+
         # All converged
         if self.batch.converged.all().item():
             self._converged = True
-            logger.info("All conformers converged at step {}.", self.nsteps)
+            logger.info(f"All conformers converged by step {self.nsteps}.")
             return True
 
         # Explosion (all non-converged conformers exceed fexit)
@@ -274,16 +245,15 @@ class Optimiser(ABC):
             if active.any() and torch.all(fmax_per_conf[active] > float(self.fexit)):
                 offenders = torch.nonzero(active, as_tuple=False).view(-1).tolist()
                 logger.warning(
-                    "Exiting due to fexit. All non-converged conformers exceeded fexit. "
-                    "Offenders: {}.",
-                    offenders,
+                    f"Exiting due to fexit. All non-converged conformers exceeded fexit. "
+                    f"Offenders: {offenders}."
                 )
                 self._converged = False
                 return True
 
         # Step limit
         if self.steps >= 0 and self.nsteps >= self.steps:
-            logger.info("Step limit reached: {} steps.", self.steps)
+            logger.info(f"Step limit reached: {self.steps} steps.")
             self._converged = False
             return True
 
@@ -296,18 +266,16 @@ class Optimiser(ABC):
         - pos_min is constructed per conformer from its converged step if available,
           otherwise its final geometry.
         """
-        frames = int(self.batch.pos_dt.shape[0])
-        logger.debug("pos_dt assembled with {} frames.", frames)
-
-        # Filter pos_dt using converged_steps to give converged geometries
+        # Return energeis, forces, positions of the converged step if available, else final
         converged_steps_by_atom = self.batch.converged_step[self.batch.batch]
         atom_idx = torch.arange(converged_steps_by_atom.numel(), device=self.device)
-        self.batch.pos_min = self.batch.pos_dt[converged_steps_by_atom, atom_idx]
+        conformer_idx = torch.arange(self.batch.n_conformers, device=self.device)
+        self.batch.pos = self.batch.pos_dt[converged_steps_by_atom, atom_idx]
+        self.batch.forces = self.batch.forces_dt[converged_steps_by_atom, atom_idx]
+        self.batch.energies = self.batch.energies_dt[self.batch.converged_step, conformer_idx]
 
-        nconv = int(self.batch.converged.sum().item()) if hasattr(self.batch, "converged") else 0
+        nconv = int(self.batch.converged.sum().item())
         logger.info(
-            "Finalized trajectories: nconf={}, converged={}/{}.",
-            self.batch.n_conformers,
-            nconv,
-            self.batch.n_conformers,
+            f"Finalized trajectories: steps={self.nsteps}, nconfs={self.n_confs}, "
+            f"converged={nconv}/{self.n_confs}."
         )

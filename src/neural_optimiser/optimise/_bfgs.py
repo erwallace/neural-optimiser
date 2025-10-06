@@ -129,28 +129,33 @@ class BFGS(Optimiser):
             self._r0[i] = r[i, :di].detach().clone()
             self._f0[i] = f[i, :di].detach().clone()
 
-        logger.debug("Applied batched BFGS step to {} conformers.", N)
-
 
 if __name__ == "__main__":
     from timeit import default_timer as timer
 
     from ase.build import molecule
 
-    from neural_optimiser.calculators import RandomCalculator
+    # device = "cpu"
+    # atoms_list = [molecule("H2O"), molecule("NH3"), molecule("CH4")] * 10
+    # batch = ConformerBatch.from_ase(atoms_list, device=device)
+    # start = timer()
+    # optimiser = BFGS(steps=2000, fmax=0.05, fexit=500.0)
+    # optimiser.calculator = RandomCalculator()
+    # converged = optimiser.run(batch)
+    # end = timer()
+    # t1 = end - start
+    # print(f"Single BFGS call took {end - start:.2f} seconds.")
+    # 30 molecules for 2000 steps with a dummy calculator: ~3.3 seconds
+    from neural_optimiser.calculators import MACECalculator
     from neural_optimiser.conformers import ConformerBatch
 
     device = "cpu"
 
-    atoms_list = [molecule("H2O"), molecule("NH3"), molecule("CH4")] * 10
+    atoms_list = [molecule("H2O"), molecule("NH3"), molecule("CH4")]
     batch = ConformerBatch.from_ase(atoms_list, device=device)
 
     start = timer()
-    optimiser = BFGS(steps=2000, fmax=0.05, fexit=500.0)
-    optimiser.calculator = RandomCalculator()
+    optimiser = BFGS(steps=20, fmax=0.05, fexit=500.0)
+    optimiser.calculator = MACECalculator(model_paths="./models/MACE_SPICE2_NEUTRAL.model")
     converged = optimiser.run(batch)
     end = timer()
-    t1 = end - start
-    print(f"Single BFGS call took {end - start:.2f} seconds.")
-
-    # 30 molecules for 2000 steps with a dummy calculator: ~3.3 seconds
