@@ -263,7 +263,7 @@ class Optimiser(ABC):
         """Assemble batch.pos_dt [T, N, 3] and batch.pos_min [N, 3] on exit.
 
         - pos_dt contains coordinates after each step.
-        - pos_min is constructed per conformer from its converged step if available,
+        - pos is constructed per conformer from its converged step if available,
           otherwise its final geometry.
         """
         # Return energeis, forces, positions of the converged step if available, else final
