@@ -41,7 +41,9 @@ def test_bfgs_initial_convergence_with_zero_forces(atoms, zero_calculator):
         batch.converged_step,
         torch.full((batch.n_conformers,), -1, dtype=torch.long, device=batch.pos.device),
     )
-    assert hasattr(batch, "pos_min") and tuple(batch.pos_min.shape) == (batch.n_atoms, 3)
+    assert hasattr(batch, "pos") and tuple(batch.pos.shape) == (batch.n_atoms, 3)
+    assert hasattr(batch, "forces") and tuple(batch.forces.shape) == (batch.n_atoms, 3)
+    assert hasattr(batch, "energies") and tuple(batch.energies.shape) == (batch.n_conformers,)
 
 
 def test_bfgs_step_capped_and_state_updated(atoms, const_calculator_factory):

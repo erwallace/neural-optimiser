@@ -11,7 +11,9 @@ class Optimiser(ABC):
     - Maintains one Hessian per conformer in the batch.
     - Exits on convergence (fmax), explosion (fexit) or step limit.
     - Tracks per-conformer convergence and converged step.
-    - Stores per-step positions in `batch.pos_dt` and returns `batch.pos_min` on exit.
+    - Stores per-step positions in `batch.pos_dt` and returns `batch.pos` on exit.
+    - Stores per step energies and forces in `batch.energies_dt` and `batch.forces_dt` and 
+      returns `batch.energies` and `batch.forces` on exit.
     """
 
     def __init__(
@@ -260,7 +262,7 @@ class Optimiser(ABC):
         return False
 
     def _finalise_trajectories(self) -> None:
-        """Assemble batch.pos_dt [T, N, 3] and batch.pos_min [N, 3] on exit.
+        """Assemble batch.pos_dt [T, N, 3] and batch.pos [N, 3] on exit.
 
         - pos_dt contains coordinates after each step.
         - pos is constructed per conformer from its converged step if available,
