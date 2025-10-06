@@ -12,7 +12,7 @@ class Optimiser(ABC):
     - Exits on convergence (fmax), explosion (fexit) or step limit.
     - Tracks per-conformer convergence and converged step.
     - Stores per-step positions in `batch.pos_dt` and returns `batch.pos` on exit.
-    - Stores per step energies and forces in `batch.energies_dt` and `batch.forces_dt` and 
+    - Stores per step energies and forces in `batch.energies_dt` and `batch.forces_dt` and
       returns `batch.energies` and `batch.forces` on exit.
     """
 
