@@ -5,7 +5,7 @@ Batched optimisation algorithms for neural network potential–driven molecular 
 
 - Batched per-conformer BFGS with per-atom max-step control.
 - Early exit on convergence (`fmax`), explosion (`fexit`), or step cap (`steps`).
-- Trajectory collection per step (`batch.pos_dt`) and converged geometries (`batch.pos_min`).
+- Trajectory collection per step (`batch.pos_dt`, `batch.forces_dt`, `batch.energies_dt`) and converged properties (`batch.pos`, `batch.energies`, `batch.forces`).
 - IO methods for RDkit molecules and ASE atoms objects.
 
 ## Installation
@@ -65,13 +65,13 @@ for i, (conv, nsteps) in enumerate(zip(batch.converged, batch.converged_step)):
 
 # Trajectory [T, N, 3] and converged coordinates [N, 3]
 print("pos_dt shape:", tuple(batch.pos_dt.shape))
-print("pos_min shape:", tuple(batch.pos_min.shape))
+print("pos shape:", tuple(batch.pos.shape))
 ```
 
 **Notes:**
 - `fmax` triggers convergence per conformer using the maximum per-atom force norm,. Ether `fmax` or `steps` must be specified.
 - `fexit` triggers early exit if all non-converged conformers exceed the threshold.
-- Trajectories are accumulated in memory as `batch.pos_dt`; converged geometries are indexed into `batch.pos_min` (final positions are returned for non-converged conformers). See `neural_optimiser.optimise.base.Optimiser` for more details.
+- Trajectories are accumulated in memory as `batch.pos_dt` along with their energies and forces (`batch.forces_dt`, `batch.energies_dt`); converged geometries are indexed into `batch.pos`, `batch.energies`, `batch.forces` (final positions are returned for non-converged conformers). See `neural_optimiser.optimise.base.Optimiser` for more details.
 
 ### Run a Larger BFGS Optimisation using the ConformerDataLoader
 
