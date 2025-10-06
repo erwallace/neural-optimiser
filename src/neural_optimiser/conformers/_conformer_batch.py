@@ -107,7 +107,7 @@ class ConformerBatch(Batch):
             if hasattr(self, "pos_dt"):
                 kwargs["pos"] = self.pos_dt[step][self.batch == idx]
                 kwargs["forces"] = self.forces_dt[step][self.batch == idx]
-                kwargs["energy"] = self.energy_dt[step, idx]
+                kwargs["energy"] = self.energies_dt[step, idx]
             else:
                 raise ValueError(f"Cannot return step {step}, no pos_dt attribute found in batch.")
 
