@@ -103,9 +103,11 @@ class ConformerBatch(Batch):
             elif torch.is_tensor(v) and v.size(0) == self.n_conformers:
                 kwargs[k] = v[idx]
 
-        if step is not None:
+        if step is not None:  # if optimisation has been performed
             if hasattr(self, "pos_dt"):
                 kwargs["pos"] = self.pos_dt[step][self.batch == idx]
+                kwargs["forces"] = self.forces_dt[step][self.batch == idx]
+                kwargs["energy"] = self.energy_dt[step, idx]
             else:
                 raise ValueError(f"Cannot return step {step}, no pos_dt attribute found in batch.")
 
