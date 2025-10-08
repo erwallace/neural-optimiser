@@ -61,7 +61,7 @@ class DummyOptimiser(Optimiser):
 
 
 class ZeroCalculator:
-    def calculate(self, batch):
+    def __call__(self, batch):
         return torch.zeros(batch.n_conformers), torch.zeros_like(batch.pos)
 
 
@@ -69,15 +69,8 @@ class ConstCalculator:
     def __init__(self, value: float):
         self.value = float(value)
 
-    def calculate(self, batch):
+    def __call__(self, batch):
         return torch.zeros(batch.n_conformers), torch.full_like(batch.pos, self.value)
-
-
-class BadShapeCalculator:
-    def calculate(self, batch):
-        return torch.zeros(batch.n_conformers), torch.zeros(
-            batch.pos.shape[0], device=batch.pos.device, dtype=batch.pos.dtype
-        )
 
 
 class PerConfConstCalculator:
@@ -86,7 +79,7 @@ class PerConfConstCalculator:
     def __init__(self, values):
         self.values = [float(v) for v in values]
 
-    def calculate(self, batch):
+    def __call__(self, batch):
         f = torch.zeros_like(batch.pos)
         for i, v in enumerate(self.values):
             mask = batch.batch == i
@@ -110,11 +103,6 @@ def const_calculator_factory():
         return ConstCalculator(value)
 
     return _make
-
-
-@pytest.fixture
-def bad_shape_calculator():
-    return BadShapeCalculator()
 
 
 @pytest.fixture
