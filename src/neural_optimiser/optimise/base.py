@@ -6,14 +6,38 @@ from torch_geometric.data import Batch, Data
 
 
 class Optimiser(ABC):
-    """Optimiser base class with additional exit conditions, operating on a PyG Batch/Data.
+    """Abstract base class for batched molecular geometry optimisation.
 
-    - Maintains one Hessian per conformer in the batch.
-    - Exits on convergence (fmax), explosion (fexit) or step limit.
-    - Tracks per-conformer convergence and converged step.
-    - Stores per-step positions in `batch.pos_dt` and returns `batch.pos` on exit.
-    - Stores per step energies and forces in `batch.energies_dt` and `batch.forces_dt` and
-      returns `batch.energies` and `batch.forces` on exit.
+    This class provides the core framework for running optimisation simulations on a
+    `torch_geometric.data.Batch` or `Data` object. It handles the main optimisation
+    loop, convergence checks, and trajectory logging. Subclasses must implement the
+    `step` method to define the specific optimisation algorithm.
+
+    The optimiser will stop under one of the following conditions:
+    - All conformers in the batch converge (maximum norm force per atom is below `fmax`).
+    - The maximum number of steps (`steps`) is reached.
+    - The forces on all non-converged conformers exceed the `fexit` threshold,
+      indicating a potential explosion or instability.
+
+    After the run, the input `batch` object is updated with the results, including
+    the full trajectory and the final converged geometries.
+
+    Attributes:
+        max_step (float): The maximum distance any single atom can move in one step.
+        steps (int): The maximum number of optimisation steps to perform. If -1,
+            the optimisation runs until `fmax` or `fexit` criteria are met.
+        fmax (float | None): The force convergence threshold. A conformer is
+            considered converged if the maximum norm force on all of its atoms is
+            less than this value.
+        fexit (float | None): The explosion threshold. The optimisation will
+            terminate early if the max force on all non-converged conformers
+            exceed this value.
+        calculator (Calculator | None): The calculator instance used to compute
+            energies and forces for the molecular geometries. This must be set
+            before calling `run`.
+        nsteps (int): The number of steps taken in the most recent optimisation run.
+        trajectory (Trajectory): The trajectory object that stores positional,
+            force, and energy data for each step.
     """
 
     def __init__(
@@ -23,14 +47,21 @@ class Optimiser(ABC):
         fmax: float | None = None,
         fexit: float | None = None,
     ) -> None:
-        """Create a batched optimiser.
+        """Initialises a new batched optimiser.
 
         Args:
-            max_step: Maximum allowed displacement per-atom per step.
-            steps: Maximum number of steps. If -1, only fmax/fexit control exit.
-            fmax: Convergence threshold on max per-atom force norm.
-            fexit: Early-exit threshold if all non-converged max per-conformer forces exceeds this
-            value.
+            max_step: Maximum allowed displacement for any atom in a single step.
+                Used to control the step size and prevent overly large changes in
+                geometry.
+            steps: The maximum number of optimisation steps to perform. If set to
+                -1, the optimisation will continue until either the `fmax` or
+                `fexit` criteria are met.
+            fmax: The convergence threshold for the maximum force on a single
+                atom. If the maximum force on every atom in a conformer is below
+                this value, the conformer is considered converged.
+            fexit: An early-exit threshold. If the maximum force on
+                all non-converged conformers exceeds this value, the optimisation
+                is terminated to prevent instability.
         """
         self.fexit = fexit
         self.steps = steps
@@ -40,7 +71,6 @@ class Optimiser(ABC):
 
         self.nsteps: int = 0
         self._converged: bool = False
-        self._n_fmax: float = 0.0
 
         logger.debug(
             f"Initialized {self.__class__.__name__}(max_step={max_step}, steps={steps}, "
@@ -51,10 +81,24 @@ class Optimiser(ABC):
             raise ValueError("Either fmax or steps must be set to define convergence.")
 
     def run(self, batch: Data | Batch) -> bool:
-        """Run until exit conditions are met.
+        """Runs the optimisation until a termination condition is met.
+
+        This method executes the main optimisation loop. It iteratively calls the
+        `step` method (implemented by subclasses) and updates the state of the
+        `batch` object with trajectory and convergence information.
+
+        The `batch` object is modified in-place to contain the results.
+
+        Args:
+            batch: A `torch_geometric.data.Batch` or `Data` object containing
+                the initial molecular geometries. It must have `pos` and `atom_types`
+                attributes.
 
         Returns:
-            True if all conformers converged, else False.
+            True if all conformers in the batch converged successfully, False otherwise.
+
+        Raises:
+            AttributeError: If `self.calculator` has not been set before calling `run`.
         """
         if self.calculator is None:
             raise AttributeError(
@@ -78,21 +122,14 @@ class Optimiser(ABC):
     # --------------------- internal API ---------------------
 
     def _run(self) -> bool:
-        """Internal driver loop. Computes forces, steps, and exit handling."""
+        """Internal driver loop that computes forces, steps, and handles exit conditions."""
         self.nsteps = 0
         self._converged = False
-
-        # Init per-step trajectory storage directly on batch: [T, N, 3]
-        self.batch.pos_dt = self.batch.pos.clone().unsqueeze(dim=0)
-        self.batch.forces_dt = torch.empty(
-            (0, self.n_atoms, 3), device=self.device, dtype=self.dtype
-        )
-        self.batch.energies_dt = torch.empty(
-            (0, self.n_confs), device=self.device, dtype=self.dtype
-        )
+        self.trajectory = Trajectory(self.batch)
 
         # Initial force evaluation
-        energies, forces = self._forces()
+        energies, forces = self.calculator.calculate(self.batch)
+        self.trajectory.add_initial_properties(energies, forces)
         fmax_per_conf = self._per_conformer_max_force(forces)
 
         # Update per-conformer converged mask (no step index recorded yet)
@@ -103,42 +140,49 @@ class Optimiser(ABC):
             logger.info(
                 f"Exiting before any step: converged={self._converged}, nsteps={self.nsteps}"
             )
-            self._finalise_trajectories()
+            self.trajectory.finalise(self.batch)
             return self._converged
 
         while True:
             with torch.no_grad():
                 self.step(forces)
 
-            # Append current positions as a new frame to batch.pos_dt
-            self.batch.pos_dt = torch.cat(
-                (self.batch.pos_dt, self.batch.pos.unsqueeze(0)),
-                dim=0,
-            )
             self.nsteps += 1
 
-            energies, forces = self._forces()
+            # Get new forces and energies and update trajectory
+            energies, forces = self.calculator.calculate(self.batch)
+            self.trajectory.add_frame(self.batch.pos, energies, forces)
             fmax_per_conf = self._per_conformer_max_force(forces)
 
             # Update convergence and exit checks after step (record step index)
             if self._should_exit(fmax_per_conf, after_step=True):
                 logger.info(f"Exiting after step {self.nsteps}: converged={self._converged}")
-                self._finalise_trajectories()
+                self.trajectory.finalise(self.batch)
                 return self._converged
 
     @abstractmethod
-    def step(self) -> None:
-        """Perform one optimisation step."""
+    def step(self, forces: torch.Tensor) -> None:
+        """Performs a single optimisation step.
+
+        This method must be implemented by subclasses to define the logic for
+        updating atom positions based on the current forces.
+
+        Args:
+            forces: A tensor of shape `(n_atoms, 3)` containing the forces on each atom.
+        """
         ...
 
     # --------------------- utilities ---------------------
 
     def _check_batch(self) -> None:
-        """Validate and augment the Batch/Data object for optimisation.
+        """Validates and prepares the Batch/Data object for optimisation.
 
-        - Ensures .pos shape and dtype.
-        - Adds .ptr and .batch if given a single Data object.
-        - Initializes batch.converged and batch.converged_step arrays on device.
+        This method performs the following actions:
+        - Ensures the `.pos` attribute exists, is a tensor, and has the correct shape and dtype.
+        - If a single `Data` object is provided, it synthesizes `.ptr` and `.batch`
+          attributes to treat it as a batch with one conformer.
+        - Initializes the `batch.converged` and `batch.converged_step` tensors on the
+          correct device for tracking convergence status.
         """
         if not hasattr(self.batch, "pos"):
             raise ValueError("Batch/Data must have a .pos tensor of shape [n_atoms, 3].")
@@ -171,26 +215,26 @@ class Optimiser(ABC):
             )
 
     def _iter_conformer_slices(self):
-        """Yield (idx, (start, end)) atom index slices for each conformer.
+        """Yields atom index slices for each conformer in the batch.
 
-        Note: slices update batch.pos inplace. Masks create copies, so do not work here."""
+        This is a generator that provides the start and end indices for the atoms
+        belonging to each conformer, which is useful for per-conformer operations.
+
+        Yields:
+            A tuple of (conformer_index, (start_atom_index, end_atom_index)).
+        """
         for i in range(self.n_confs):
             yield i, (int(self.batch.ptr[i].item()), int(self.batch.ptr[i + 1].item()))
 
-    def _forces(self) -> tuple[torch.Tensor, torch.Tensor]:
-        """Request energies and forces from the attached calculator."""
-        e, f = self.calculator.calculate(self.batch)
-
-        self.batch.energies_dt = torch.cat((self.batch.energies_dt, e.unsqueeze(0)), dim=0)
-        self.batch.forces_dt = torch.cat((self.batch.forces_dt, f.unsqueeze(0)), dim=0)
-
-        return e, f
-
     def _per_conformer_max_force(self, forces: torch.Tensor) -> torch.Tensor:
-        """Compute per-conformer max |F|.
+        """Computes the maximum per-atom force norm for each conformer.
+
+        Args:
+            forces: A tensor of shape `(n_atoms, 3)` containing the forces for the entire batch.
 
         Returns:
-            Tensor of shape [n_conformers] with each conformer's max per-atom force norm.
+            A tensor of shape `(n_conformers,)` where each element is the maximum
+            force norm for the corresponding conformer.
         """
         norms = torch.linalg.vector_norm(forces, dim=1)
         vals = []
@@ -200,11 +244,17 @@ class Optimiser(ABC):
         return out
 
     def _update_convergence(self, fmax_per_conf: torch.Tensor, after_step: bool) -> None:
-        """Update per-conformer convergence mask and converged_step.
+        """Updates the convergence status for each conformer.
+
+        This method checks which conformers have a maximum force below `self.fmax`
+        and updates their status in `batch.converged` and `batch.converged_step`.
 
         Args:
-            fmax_per_conf: Tensor [n_conformers] with max |F| per conformer.
-            after_step: If True, record converged_step as current step for newly converged.
+            fmax_per_conf: A tensor of shape `(n_conformers,)` with the maximum
+                force for each conformer.
+            after_step: A boolean indicating whether this check is performed after an
+                optimisation step. If True, the current step index is recorded for
+                newly converged conformers.
         """
         if self.fmax is None:
             return
@@ -219,17 +269,25 @@ class Optimiser(ABC):
                 self.batch.converged_step[idxs] = self.nsteps
 
     def _should_exit(self, fmax_per_conf: torch.Tensor, after_step: bool) -> bool:
-        """Update convergence bookkeeping and decide whether to stop.
+        """Determines if the optimisation should terminate.
 
-        Exit if:
-        - All conformers have converged,
-        - Any conformer exceeds fexit,
-        - Step limit reached.
+        Checks for the three exit conditions:
+        1. All conformers have converged.
+        2. The step limit has been reached.
+        3. All non-converged conformers have forces exceeding `fexit`.
+
+        Args:
+            fmax_per_conf: A tensor of shape `(n_conformers,)` with the maximum
+                force for each conformer.
+            after_step: A boolean passed to `_update_convergence`.
+
+        Returns:
+            True if the optimisation should exit, False otherwise.
         """
         # Update per-conformer convergence bookkeeping
         self._update_convergence(fmax_per_conf, after_step=after_step)
 
-        if self.nsteps % 10 == 0:
+        if self.nsteps % 10 == 0 and self.nsteps > 0:
             logger.info(
                 f"Step {self.nsteps}: {int(self.batch.converged.sum().item())}/{self.n_confs} "
                 "conformers converged."
@@ -261,23 +319,50 @@ class Optimiser(ABC):
 
         return False
 
-    def _finalise_trajectories(self) -> None:
-        """Assemble batch.pos_dt [T, N, 3] and batch.pos [N, 3] on exit.
 
-        - pos_dt contains coordinates after each step.
-        - pos is constructed per conformer from its converged step if available,
-          otherwise its final geometry.
+class Trajectory:
+    """Handles the storage and finalisation of optimisation trajectory data."""
+
+    def __init__(self, batch: Data | Batch):
+        """Initialise trajectory with the starting geometry."""
+        self.device = batch.pos.device
+        self.n_confs = batch.n_conformers
+
+        # Use lists for efficient appending of tensors
+        self.pos_dt = [batch.pos.clone()]
+        self.forces_dt = []
+        self.energies_dt = []
+
+    def add_frame(self, pos: torch.Tensor, energies: torch.Tensor, forces: torch.Tensor):
+        """Append a new frame (positions, energies, forces) to the trajectory."""
+        self.pos_dt.append(pos.clone())
+        self.energies_dt.append(energies)
+        self.forces_dt.append(forces)
+
+    def add_initial_properties(self, energies: torch.Tensor, forces: torch.Tensor):
+        """Store the energies and forces of the initial state."""
+        self.energies_dt.append(energies)
+        self.forces_dt.append(forces)
+
+    def finalise(self, batch: Data | Batch):
         """
-        # Return energeis, forces, positions of the converged step if available, else final
-        converged_steps_by_atom = self.batch.converged_step[self.batch.batch]
-        atom_idx = torch.arange(converged_steps_by_atom.numel(), device=self.device)
-        conformer_idx = torch.arange(self.batch.n_conformers, device=self.device)
-        self.batch.pos = self.batch.pos_dt[converged_steps_by_atom, atom_idx]
-        self.batch.forces = self.batch.forces_dt[converged_steps_by_atom, atom_idx]
-        self.batch.energies = self.batch.energies_dt[self.batch.converged_step, conformer_idx]
+        Stack trajectory lists into tensors and attach them to the final batch object.
 
-        nconv = int(self.batch.converged.sum().item())
-        logger.info(
-            f"Finalized trajectories: steps={self.nsteps}, nconfs={self.n_confs}, "
-            f"converged={nconv}/{self.n_confs}."
-        )
+        - pos_dt, forces_dt, energies_dt contain the full trajectory.
+        - pos, forces, energies contain the properties of the converged step
+          if available, otherwise the final step.
+        """
+        # Attach full trajectories to the batch
+        batch.pos_dt = torch.stack(self.pos_dt, dim=0)
+        batch.forces_dt = torch.stack(self.forces_dt, dim=0)
+        batch.energies_dt = torch.stack(self.energies_dt, dim=0)
+
+        # Get properties from the converged step, or the final step for non-converged
+        converged_steps_by_atom = batch.converged_step[batch.batch]
+        atom_idx = torch.arange(converged_steps_by_atom.numel(), device=self.device)
+        conformer_idx = torch.arange(self.n_confs, device=self.device)
+
+        # For non-converged items, converged_step is -1, which correctly indexes the last frame.
+        batch.pos = batch.pos_dt[converged_steps_by_atom, atom_idx]
+        batch.forces = batch.forces_dt[converged_steps_by_atom, atom_idx]
+        batch.energies = batch.energies_dt[batch.converged_step, conformer_idx]
