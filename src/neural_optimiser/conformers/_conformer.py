@@ -60,8 +60,16 @@ class Conformer(Data):
         """Construct Conformer from ASE Atoms object."""
         z = np.asarray(atoms.get_atomic_numbers(), dtype=np.int64)
         pos = np.asarray(atoms.get_positions(), dtype=np.float32)
+        charge = atoms.info.get("charge", 0)
+        spin = atoms.info.get("spin", 1)
 
-        return cls(atom_types=torch.from_numpy(z), pos=torch.from_numpy(pos), **kwargs)
+        return cls(
+            atom_types=torch.from_numpy(z),
+            pos=torch.from_numpy(pos),
+            charge=charge,
+            spin=spin,
+            **kwargs,
+        )
 
     @classmethod
     def from_rdkit(cls, mol: Chem.Mol, conf: Chem.Conformer | None = None, **kwargs) -> "Conformer":
@@ -94,6 +102,8 @@ class Conformer(Data):
             atom_types=torch.from_numpy(z),
             pos=torch.from_numpy(pos),
             smiles=Chem.MolToSmiles(mol),
+            charge=Chem.GetFormalCharge(mol),
+            spin=hunds_rule(mol),
             **kwargs,
         )
 
@@ -162,6 +172,14 @@ class Conformer(Data):
             return self._plot_3d()
         else:
             raise ValueError("dim must be 2 or 3")
+
+
+def hunds_rule(mol: Chem.Mol) -> int:
+    """Calculate spin multiplicity using Hund's rule."""
+    num_radical_electrons = sum(atom.GetNumRadicalElectrons() for atom in mol.GetAtoms())
+    total_electronic_spin = num_radical_electrons / 2
+    spin_multiplicity = 2 * total_electronic_spin + 1
+    return int(spin_multiplicity)
 
 
 if __name__ == "__main__":
