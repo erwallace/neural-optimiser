@@ -6,7 +6,7 @@ from torch_geometric.data import Data
 
 def test_calculate_returns_expected_shapes(mace_calculator, batch):
     """Test that calculate returns tensors of expected shapes and dtypes."""
-    e, f = mace_calculator.calculate(batch)
+    e, f = mace_calculator(batch)
 
     assert isinstance(e, torch.Tensor)
     assert isinstance(f, torch.Tensor)
@@ -67,7 +67,7 @@ def test_mace_calculator(mace_calculator, batch, atoms):
     from mace.calculators.mace import MACECalculator as MACECalc
 
     model_paths = test_dir / "models" / "MACE_SPICE2_NEUTRAL.model"
-    e, f = mace_calculator.calculate(batch)
+    e, f = mace_calculator(batch)
 
     mace_calc = MACECalc(model_paths=str(model_paths), device="cpu")
     atoms.calc = mace_calc
@@ -77,3 +77,19 @@ def test_mace_calculator(mace_calculator, batch, atoms):
     # Ensure comparable shapes/dtypes
     assert torch.isclose(e.squeeze(), torch.tensor(_e, dtype=e.dtype), atol=1e-4)
     assert torch.allclose(f, torch.tensor(_f, dtype=f.dtype), atol=1e-4)
+
+
+def test_mace_calculator2(mace_calculator, batch, atoms):
+    """Compare MACECalculator results to ASE MACE calculator."""
+    pytest.importorskip("mace", reason="MACE not installed")
+    from mace.calculators.mace import MACECalculator as MACECalc
+
+    model_paths = test_dir / "models" / "MACE_SPICE2_NEUTRAL.model"
+    e = mace_calculator.get_energies(batch)
+
+    mace_calc = MACECalc(model_paths=str(model_paths), device="cpu")
+    atoms.calc = mace_calc
+    _e = atoms.get_potential_energy()
+
+    # Ensure comparable shapes/dtypes
+    assert torch.isclose(e.squeeze(), torch.tensor(_e, dtype=e.dtype), atol=1e-4)
