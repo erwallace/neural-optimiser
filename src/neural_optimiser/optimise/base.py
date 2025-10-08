@@ -80,6 +80,12 @@ class Optimiser(ABC):
         if self.steps == -1 and self.fmax is None:
             raise ValueError("Either fmax or steps must be set to define convergence.")
 
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(max_step={self.max_step}, steps={self.steps}, "
+            f"fmax={self.fmax}, fexit={self.fexit})"
+        )
+
     def run(self, batch: Data | Batch) -> bool:
         """Runs the optimisation until a termination condition is met.
 
@@ -128,7 +134,7 @@ class Optimiser(ABC):
         self.trajectory = Trajectory(self.batch)
 
         # Initial force evaluation
-        energies, forces = self.calculator.calculate(self.batch)
+        energies, forces = self.calculator(self.batch)
         self.trajectory.add_initial_properties(energies, forces)
         fmax_per_conf = self._per_conformer_max_force(forces)
 
@@ -150,7 +156,7 @@ class Optimiser(ABC):
             self.nsteps += 1
 
             # Get new forces and energies and update trajectory
-            energies, forces = self.calculator.calculate(self.batch)
+            energies, forces = self.calculator(self.batch)
             self.trajectory.add_frame(self.batch.pos, energies, forces)
             fmax_per_conf = self._per_conformer_max_force(forces)
 
