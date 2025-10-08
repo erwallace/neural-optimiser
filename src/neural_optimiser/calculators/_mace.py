@@ -34,6 +34,12 @@ class MACECalculator(Calculator):
         output = self.model(atomic_data, compute_force=True)
         return output["energy"], output["forces"]
 
+    def get_energies(self, batch: Data | Batch) -> torch.Tensor:
+        """Compute energies for a batch of conformers using the MACE model."""
+        atomic_data = self.to_atomic_data(batch)
+        output = self.model(atomic_data, compute_force=False)
+        return output["energy"]
+
     def to_atomic_data(
         self,
         batch: Data | Batch,
