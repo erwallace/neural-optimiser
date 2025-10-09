@@ -207,7 +207,7 @@ if __name__ == "__main__":
     model_paths = "./models/MACE_SPICE2_NEUTRAL.model"
     calculator = MACECalculator(model_paths=model_paths, device="cpu")
 
-    e, f = calculator.calculate(batch)
+    e, f = calculator(batch)
 
     from mace.calculators.mace import MACECalculator as MACECalc
 
