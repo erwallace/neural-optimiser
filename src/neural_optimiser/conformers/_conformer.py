@@ -70,14 +70,15 @@ class Conformer(Data):
         """Construct Conformer from ASE Atoms object."""
         z = np.asarray(atoms.get_atomic_numbers(), dtype=np.int64)
         pos = np.asarray(atoms.get_positions(), dtype=np.float32)
-        charge = atoms.info.get("charge", 0)
-        spin = atoms.info.get("spin", 1)
+
+        if "charge" not in kwargs:
+            kwargs["charge"] = atoms.info.get("charge", 0)
+        if "spin" not in kwargs:
+            kwargs["spin"] = atoms.info.get("spin", 1)
 
         return cls(
             atom_types=torch.from_numpy(z),
             pos=torch.from_numpy(pos),
-            charge=charge,
-            spin=spin,
             **kwargs,
         )
 
@@ -108,12 +109,16 @@ class Conformer(Data):
             p = conf.GetAtomPosition(i)
             pos[i] = (float(p.x), float(p.y), float(p.z))
 
+        if "charge" not in kwargs:
+            kwargs["charge"] = Chem.GetFormalCharge(mol)
+        if "spin" not in kwargs:
+            kwargs["spin"] = hunds_rule(mol)
+        if "smiles" not in kwargs:
+            kwargs["smiles"] = Chem.MolToSmiles(mol)
+
         return cls(
             atom_types=torch.from_numpy(z),
             pos=torch.from_numpy(pos),
-            smiles=Chem.MolToSmiles(mol),
-            charge=Chem.GetFormalCharge(mol),
-            spin=hunds_rule(mol),
             **kwargs,
         )
 
@@ -149,9 +154,7 @@ class Conformer(Data):
         mol.AddConformer(conf, assignId=True)
 
         for k, v in self.__dict__["_store"].items():
-            print(k, v, type(v))
             if not isinstance(v, torch.Tensor):
-                print("setprop")
                 mol.SetProp(k, str(v))
 
         return mol
@@ -201,13 +204,16 @@ if __name__ == "__main__":
     conformer = Conformer.from_rdkit(mol)
     print(conformer)
     d2 = conformer.plot(dim=2)
-    d2.show()
+    # d2.show()
     d3 = conformer.plot(dim=3)
-    d3.show()
+    # d3.show()
+
+    conformer2 = Conformer.from_rdkit(mol, charge=4)
+    print(conformer2.charge)
 
     # Example usage: ASE
     atoms = molecule("H2O")
     conformer_ase = Conformer.from_ase(atoms)
     print(conformer_ase)
     d3 = conformer_ase.plot(dim=3)
-    d3.show()
+    # d3.show()
