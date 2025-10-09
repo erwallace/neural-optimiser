@@ -24,12 +24,6 @@ class FAIRChemCalculator(Calculator):
         self.max_neighbours = max_neighbours
         self.predictor = load_predict_unit(path=model_paths, device=device)
 
-        print(self.predictor.__dict__)
-
-        # model_checkpoint = torch.load(f=model_paths, map_location=device, weights_only=False)
-        # self.model = model_checkpoint.model
-        # self.model.eval().to(device)
-
     def _calculate(self, batch: Data | Batch) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute energies and forces for a batch of conformers using a FAIRChem model."""
         # atomic_data = self.to_atomic_data(batch)
@@ -144,6 +138,9 @@ if __name__ == "__main__":
 
     model_paths = "./models/omol25_esen_md_direct.pt"
     device = "cpu"
+
+    atomic_data = AtomicData.from_ase(atoms, r_edges=True, max_neigh=10)
+    print(atomic_data)
 
     predictor = load_predict_unit(path=model_paths, device=device)
     fairchem_calc = FAIRChemCalc(predictor, task_name="omol")
