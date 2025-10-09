@@ -55,6 +55,16 @@ class Conformer(Data):
         if self.pos.dtype != self.pos_dtype:
             raise ValueError(f"pos must have dtype {self.pos_dtype}, got {self.pos.dtype}")
 
+    @property
+    def n_atoms(self) -> int:
+        """Number of atoms in the conformer."""
+        return self.pos.size(0)
+
+    @property
+    def n_conformers(self) -> int:
+        """Number of conformers (needed for Optimiser compatibility)."""
+        return 1
+
     @classmethod
     def from_ase(cls, atoms: Atoms, **kwargs) -> "Conformer":
         """Construct Conformer from ASE Atoms object."""
@@ -107,21 +117,17 @@ class Conformer(Data):
             **kwargs,
         )
 
-    @property
-    def n_atoms(self) -> int:
-        """Number of atoms in the conformer."""
-        return self.pos.size(0)
-
-    @property
-    def n_conformers(self) -> int:
-        """Number of conformers (needed for Optimiser compatibility)."""
-        return 1
-
     def to_ase(self) -> Atoms:
         """Convert to ASE Atoms."""
         numbers = self.atom_types.detach().cpu().numpy().astype(int)
         positions = self.pos.detach().cpu().numpy().astype(np.float32)
-        return Atoms(numbers=numbers, positions=positions)
+        atoms = Atoms(numbers=numbers, positions=positions)
+
+        for k, v in self.__dict__["_store"].items():
+            if not isinstance(v, torch.Tensor):
+                atoms.info[k] = v
+
+        return atoms
 
     def to_rdkit(self) -> Chem.Mol:
         """Convert to an RDKit Mol with a single 3D conformer (no bonds)."""
@@ -142,9 +148,11 @@ class Conformer(Data):
             conf.SetAtomPosition(i, Point3D(float(x), float(y), float(zc)))
         mol.AddConformer(conf, assignId=True)
 
-        # Optionally store SMILES as a property if available
-        if getattr(self, "smiles", None):
-            mol.SetProp("_Smiles", str(self.smiles))
+        for k, v in self.__dict__["_store"].items():
+            print(k, v, type(v))
+            if not isinstance(v, torch.Tensor):
+                print("setprop")
+                mol.SetProp(k, str(v))
 
         return mol
 

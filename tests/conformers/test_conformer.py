@@ -1,4 +1,5 @@
 import numpy as np
+import PIL
 import pytest
 import torch
 from neural_optimiser.conformers import Conformer
@@ -13,10 +14,14 @@ def test_from_ase_and_to_ase_roundtrip(atoms):
 
     assert conf.atom_types.shape == (len(atoms),)
     assert conf.pos.shape == (len(atoms), 3)
+    assert conf.charge == 0
+    assert conf.spin == 1
 
     atoms2 = conf.to_ase()
     np.testing.assert_array_equal(atoms.get_atomic_numbers(), atoms2.get_atomic_numbers())
     np.testing.assert_allclose(atoms.get_positions(), atoms2.get_positions(), rtol=0, atol=1e-6)
+    assert atoms2.info["charge"] == 0
+    assert atoms2.info["spin"] == 1
 
 
 def test_from_rdkit_and_to_rdkit_roundtrip(mol):
@@ -29,6 +34,8 @@ def test_from_rdkit_and_to_rdkit_roundtrip(mol):
     assert conf.atom_types.shape == (n,)
     assert conf.pos.shape == (n, 3)
     assert isinstance(conf.smiles, str) and len(conf.smiles) > 0
+    assert conf.charge == 0
+    assert conf.spin == 1
 
     mol2 = conf.to_rdkit()
     assert mol2.GetNumAtoms() == n
@@ -46,8 +53,9 @@ def test_from_rdkit_and_to_rdkit_roundtrip(mol):
     np.testing.assert_allclose(conf.pos.detach().cpu().numpy(), pos2, rtol=0, atol=1e-5)
 
     # Smiles stored as property if available
-    assert mol2.HasProp("_Smiles")
-    assert mol2.GetProp("_Smiles") == conf.smiles
+    assert mol2.GetProp("smiles") == conf.smiles
+    assert mol2.GetProp("charge") == str(conf.charge)
+    assert mol2.GetProp("spin") == str(conf.spin)
 
 
 def test_validation_shape_mismatch_raises():
@@ -87,8 +95,11 @@ def test_example_rdkit_plot(mol):
     conformer = Conformer.from_rdkit(mol)
     assert str(conformer)
 
-    conformer.plot(dim=2)
-    conformer.plot(dim=3)
+    plot1 = conformer.plot(dim=2)
+    assert isinstance(plot1, PIL.PngImagePlugin.PngImageFile)
+
+    plot2 = conformer.plot(dim=3)
+    assert isinstance(plot2, PIL.PngImagePlugin.PngImageFile)
 
 
 def test_example_ase_plot(atoms):
@@ -96,4 +107,5 @@ def test_example_ase_plot(atoms):
     conformer_ase = Conformer.from_ase(atoms)
     assert str(conformer_ase)
 
-    conformer_ase.plot(dim=3)
+    plot1 = conformer_ase.plot(dim=3)
+    assert isinstance(plot1, PIL.PngImagePlugin.PngImageFile)
