@@ -47,37 +47,6 @@ class ConformerBatch(Batch):
         if not hasattr(self, "molecule_idxs"):
             self.molecule_idxs = self.batch.clone()
 
-    @classmethod
-    def from_data_list(cls, data_list: list, device: str = "cpu", *args, **kwargs):
-        """Wrap Batch.from_data_list to finalize attributes."""
-        batch = super().from_data_list(data_list, *args, **kwargs)
-        if not hasattr(batch, "molecule_idxs"):
-            batch.molecule_idxs = batch.batch.clone()
-        batch.to(device=device)
-        batch.__post_init__()
-        return batch
-
-    @classmethod
-    def from_rdkit(cls, mols: list[Chem.Mol] | Chem.Mol, device: str = "cpu") -> "ConformerBatch":
-        if isinstance(mols, Chem.Mol):
-            mols = [mols]
-
-        conformers = []
-        molecule_idxs = []
-        for i, mol in enumerate(mols):
-            for conformer in mol.GetConformers():
-                conformers.append(Conformer.from_rdkit(mol, conformer))
-                molecule_idxs += [i] * mol.GetNumAtoms()
-
-        batch = cls.from_data_list(conformers, device=device)
-        batch.molecule_idxs = torch.tensor(molecule_idxs, dtype=cls.molecule_idx_dtype)
-        return batch
-
-    @classmethod
-    def from_ase(cls, atoms_list: list[Atoms], device: str = "cpu") -> "ConformerBatch":
-        conformers = [Conformer.from_ase(a) for a in atoms_list]
-        return cls.from_data_list(conformers, device=device)
-
     @property
     def n_molecules(self) -> int:
         """Number of molecules in the batch."""
@@ -112,6 +81,45 @@ class ConformerBatch(Batch):
                 raise ValueError(f"Cannot return step {step}, no pos_dt attribute found in batch.")
 
         return Conformer(**kwargs)
+
+    @classmethod
+    def from_data_list(cls, data_list: list, device: str = "cpu", *args, **kwargs):
+        """Wrap Batch.from_data_list to finalize attributes."""
+        batch = super().from_data_list(data_list, *args, **kwargs)
+        if not hasattr(batch, "molecule_idxs"):
+            batch.molecule_idxs = batch.batch.clone()
+        batch.to(device=device)
+        batch.__post_init__()
+        return batch
+
+    @classmethod
+    def from_rdkit(cls, mols: list[Chem.Mol] | Chem.Mol, device: str = "cpu") -> "ConformerBatch":
+        if isinstance(mols, Chem.Mol):
+            mols = [mols]
+
+        conformers = []
+        molecule_idxs = []
+        for i, mol in enumerate(mols):
+            for conformer in mol.GetConformers():
+                conformers.append(Conformer.from_rdkit(mol, conformer))
+                molecule_idxs += [i] * mol.GetNumAtoms()
+
+        batch = cls.from_data_list(conformers, device=device)
+        batch.molecule_idxs = torch.tensor(molecule_idxs, dtype=cls.molecule_idx_dtype)
+        return batch
+
+    @classmethod
+    def from_ase(cls, atoms_list: list[Atoms], device: str = "cpu") -> "ConformerBatch":
+        conformers = [Conformer.from_ase(a) for a in atoms_list]
+        return cls.from_data_list(conformers, device=device)
+
+    def to_rdkit(self):
+        """Convert each conformer in the batch to an RDKit Mol object."""
+        return [self.conformer(i).to_rdkit() for i in range(self.n_conformers)]
+
+    def to_ase(self):
+        """Convert each conformer in the batch to an ASE Atoms object."""
+        return [self.conformer(i).to_ase() for i in range(self.n_conformers)]
 
 
 if __name__ == "__main__":
