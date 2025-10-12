@@ -43,14 +43,10 @@ class ConformerBatch(Batch):
         if self.pos.dtype != self.pos_dtype:
             raise ValueError(f"pos must have dtype {self.pos_dtype}, got {self.pos.dtype}")
 
-        # Not set when initialised using from_data_list()
-        if not hasattr(self, "molecule_idxs"):
-            self.molecule_idxs = self.batch.clone()
-
     @property
     def n_molecules(self) -> int:
         """Number of molecules in the batch."""
-        return self.molecule_idxs.max().item() + 1
+        return len(set(self.smiles)) if hasattr(self, "smiles") else None
 
     @property
     def n_conformers(self) -> int:
@@ -86,30 +82,32 @@ class ConformerBatch(Batch):
     def from_data_list(cls, data_list: list, device: str = "cpu", *args, **kwargs):
         """Wrap Batch.from_data_list to finalize attributes."""
         batch = super().from_data_list(data_list, *args, **kwargs)
-        if not hasattr(batch, "molecule_idxs"):
-            batch.molecule_idxs = batch.batch.clone()
         batch.to(device=device)
         batch.__post_init__()
         return batch
 
     @classmethod
-    def from_rdkit(cls, mols: list[Chem.Mol] | Chem.Mol, device: str = "cpu") -> "ConformerBatch":
-        if isinstance(mols, Chem.Mol):
-            mols = [mols]
+    def from_rdkit(
+        cls, mol: list[Chem.Mol] | Chem.Mol, device: str = "cpu", **kwargs
+    ) -> "ConformerBatch":
+        """Create a ConformerBatch from a list of RDKit Mol objects.
+
+        Each Mol can have multiple conformers.
+        """
+        if isinstance(mol, Chem.Mol):
+            mol = [mol]
 
         conformers = []
-        molecule_idxs = []
-        for i, mol in enumerate(mols):
+        for i, mol in enumerate(mol):
             for conformer in mol.GetConformers():
-                conformers.append(Conformer.from_rdkit(mol, conformer))
-                molecule_idxs += [i] * mol.GetNumAtoms()
+                conformers.append(Conformer.from_rdkit(mol, conformer, **kwargs))
 
         batch = cls.from_data_list(conformers, device=device)
-        batch.molecule_idxs = torch.tensor(molecule_idxs, dtype=cls.molecule_idx_dtype)
         return batch
 
     @classmethod
     def from_ase(cls, atoms_list: list[Atoms], device: str = "cpu") -> "ConformerBatch":
+        """Create a ConformerBatch from a list of ASE Atoms objects."""
         conformers = [Conformer.from_ase(a) for a in atoms_list]
         return cls.from_data_list(conformers, device=device)
 
@@ -145,6 +143,5 @@ if __name__ == "__main__":
     print(batch)
 
     print(batch.batch)
-    print(batch.molecule_idxs)
 
     print(batch.conformer(0))
