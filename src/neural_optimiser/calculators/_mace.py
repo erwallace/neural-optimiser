@@ -24,10 +24,17 @@ class MACECalculator(Calculator):
 
         self.device = device
         self.max_neighbours = max_neighbours
+        self.model_paths = model_paths
         self.model = torch.load(f=model_paths, map_location=device, weights_only=False)
         self.model.requires_grad_(False).eval().to(device)
 
         self._z_table = AtomicNumberTable([int(z) for z in self.model.atomic_numbers])
+
+    def __repr__(self) -> str:
+        return (
+            f"MACECalculator(model_paths={self.model_paths}, device={self.device}, "
+            f"max_neighbours={self.max_neighbours})"
+        )
 
     def _calculate(self, batch: Data | Batch) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute energies and forces for a batch of conformers using the MACE model."""

@@ -9,6 +9,9 @@ class RandomCalculator(Calculator):
         self.device = None
         torch.manual_seed(seed)
 
+    def __repr__(self):
+        return f"RandomCalculator(device={self.device}, seed={torch.initial_seed()})"
+
     def _calculate(self, batch: Data | Batch) -> tuple[torch.Tensor, torch.Tensor]:
         """A dummy calculator that returns random energies and forces."""
         energies = torch.zeros(batch.n_conformers, device=self.device)

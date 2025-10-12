@@ -22,7 +22,14 @@ class FAIRChemCalculator(Calculator):
         self.device = device
         self.radius = radius
         self.max_neighbours = max_neighbours
+        self.model_paths = model_paths
         self.predictor = load_predict_unit(path=model_paths, device=device)
+
+    def __repr__(self):
+        return (
+            f"FAIRChemCalculator(model_paths={self.model_paths}, device={self.device}, "
+            f"max_neighbours={self.max_neighbours}, radius={self.radius})"
+        )
 
     def _calculate(self, batch: Data | Batch) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute energies and forces for a batch of conformers using a FAIRChem model."""
