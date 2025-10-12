@@ -1,7 +1,7 @@
 import torch
 from loguru import logger
 
-from neural_optimiser.optimise.base import Optimiser
+from neural_optimiser.optimisers.base import Optimiser
 
 
 class BFGS(Optimiser):
