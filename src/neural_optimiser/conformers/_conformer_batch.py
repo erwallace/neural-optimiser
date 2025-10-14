@@ -79,6 +79,15 @@ class ConformerBatch(Batch):
         return Conformer(**kwargs)
 
     @classmethod
+    def cat(cls, batches: list["ConformerBatch"]) -> "ConformerBatch":
+        """Concatenate multiple ConformerBatch objects into a single batch."""
+        batch = cls.from_data_list(
+            [cb.conformer(i) for cb in batches for i in range(cb.n_conformers)]
+        )
+        batch.__post_init__()
+        return batch
+
+    @classmethod
     def from_data_list(cls, data_list: list, device: str = "cpu", *args, **kwargs):
         """Wrap Batch.from_data_list to finalize attributes."""
         batch = super().from_data_list(data_list, *args, **kwargs)
@@ -93,6 +102,7 @@ class ConformerBatch(Batch):
         """Create a ConformerBatch from a list of RDKit Mol objects.
 
         Each Mol can have multiple conformers.
+        Note : kwargs are applied to all objects in the batch.
         """
         if isinstance(mol, Chem.Mol):
             mol = [mol]
