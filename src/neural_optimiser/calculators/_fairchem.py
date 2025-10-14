@@ -1,5 +1,4 @@
 import torch
-from fairchem.core import load_predict_unit
 from torch_geometric.data import Batch, Data
 
 from neural_optimiser.calculators.base import Calculator
@@ -11,6 +10,7 @@ class FAIRChemCalculator(Calculator):
     ):
         try:
             import fairchem  # noqa: F401
+            from fairchem.core.units.mlip_unit import load_predict_unit
         except ImportError:
             raise ImportError(
                 "MACE is not installed. Run `uv pip install fairchem-core` to install."
