@@ -14,6 +14,15 @@ def test_random_calculator_shapes_and_dtypes(batch):
     assert f.dtype == batch.pos.dtype
 
 
+def test_get_energies_shape(batch):
+    """RandomCalculator.get_energies returns a 1D tensor of length n_conformers."""
+    calc = RandomCalculator()
+    e = calc.get_energies(batch)
+
+    assert isinstance(e, torch.Tensor)
+    assert e.shape == (batch.n_conformers,)
+
+
 def test_random_calculator_reproducible_with_manual_seed(batch):
     """Test that RandomCalculator produces reproducible results with the same manual seed."""
     torch.manual_seed(0)

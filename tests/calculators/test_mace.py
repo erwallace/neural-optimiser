@@ -61,6 +61,21 @@ def test_validate_batch_missing_fields_raises(mace_calculator):
         mace_calculator._validate_batch(bad)
 
 
+def test_get_energies_matches_ase(mace_calculator, batch, atoms, test_dir):
+    """Compare energies to ASE MACE for the same model."""
+    pytest.importorskip("mace", reason="MACE not installed")
+    from mace.calculators.mace import MACECalculator as MACECalc
+
+    model_path = test_dir / "models" / "MACE_SPICE2_NEUTRAL.model"
+    e = mace_calculator.get_energies(batch)
+
+    mace_calc = MACECalc(model_paths=str(model_path), device="cpu")
+    atoms.calc = mace_calc
+    ref_e = atoms.get_potential_energy()
+
+    assert torch.isclose(e.squeeze(), torch.tensor(ref_e, dtype=e.dtype), atol=1e-4)
+
+
 def test_mace_calculator(mace_calculator, batch, atoms):
     """Compare MACECalculator results to ASE MACE calculator."""
     pytest.importorskip("mace", reason="MACE not installed")
