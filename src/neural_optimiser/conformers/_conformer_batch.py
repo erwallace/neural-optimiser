@@ -1,5 +1,6 @@
 import torch
 from ase import Atoms
+from loguru import logger
 from rdkit import Chem
 from torch_geometric.data import Batch
 
@@ -59,7 +60,11 @@ class ConformerBatch(Batch):
         return self.pos.size(0)
 
     def conformer(self, idx: int, step: int | None = None) -> Conformer:
-        """Get the idx-th conformer in the batch at the n-th relaxation step."""
+        """Get the i-th conformer in the batch at the n-th relaxation step.
+
+        If step is not given and optimisation has been performed, the converged structure is
+        returned.
+        """
         kwargs = {}
 
         for k, v in self.__dict__["_store"].items():
@@ -67,6 +72,8 @@ class ConformerBatch(Batch):
                 kwargs[k] = v[self.batch == idx]
             elif torch.is_tensor(v) and v.size(0) == self.n_conformers:
                 kwargs[k] = v[idx]
+            else:
+                logger.warning(f"Attribute {k} not added to Conformer, shape {v.shape}.")
 
         if step is not None:  # if optimisation has been performed
             if hasattr(self, "pos_dt"):
