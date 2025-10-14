@@ -124,11 +124,11 @@ class ConformerBatch(Batch):
 
     def to_rdkit(self):
         """Convert each conformer in the batch to an RDKit Mol object."""
-        return [self.conformer(i).to_rdkit() for i in range(self.n_conformers)]
+        return [conformer.to_rdkit() for conformer in self.to_data_list()]
 
     def to_ase(self):
         """Convert each conformer in the batch to an ASE Atoms object."""
-        return [self.conformer(i).to_ase() for i in range(self.n_conformers)]
+        return [conformer.to_ase() for conformer in self.to_data_list()]
 
 
 if __name__ == "__main__":
