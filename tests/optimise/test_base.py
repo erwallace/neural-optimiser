@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 import torch
 from neural_optimiser.conformers import Conformer, ConformerBatch
-from neural_optimiser.optimise.base import Optimiser, Trajectory
+from neural_optimiser.optimisers.base import Optimiser, Trajectory
 
 
 class MockOptimiser(Optimiser):

@@ -3,7 +3,7 @@ import math
 import pytest
 import torch
 from neural_optimiser.conformers import Conformer, ConformerBatch
-from neural_optimiser.optimise import BFGS
+from neural_optimiser.optimisers import BFGS
 
 
 def _per_conf_step_norms(batch):

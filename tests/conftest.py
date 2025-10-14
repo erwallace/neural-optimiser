@@ -4,7 +4,7 @@ from ase.build import molecule
 from neural_optimiser import test_dir
 from neural_optimiser.calculators import MACECalculator
 from neural_optimiser.conformers import ConformerBatch
-from neural_optimiser.optimise.base import Optimiser
+from neural_optimiser.optimisers.base import Optimiser
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
