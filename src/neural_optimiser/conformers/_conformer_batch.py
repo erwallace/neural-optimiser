@@ -81,15 +81,13 @@ class ConformerBatch(Batch):
     @classmethod
     def cat(cls, batches: list["ConformerBatch"]) -> "ConformerBatch":
         """Concatenate multiple ConformerBatch objects into a single batch."""
-        batch = cls.from_data_list(
-            [cb.conformer(i) for cb in batches for i in range(cb.n_conformers)]
-        )
+        batch = cls.from_data_list([conf for cb in batches for conf in cb.to_data_list()])
         batch.__post_init__()
         return batch
 
     @classmethod
     def from_data_list(cls, data_list: list, device: str = "cpu", *args, **kwargs):
-        """Wrap Batch.from_data_list to finalize attributes."""
+        """Wrap Batch.from_data_list to finalise attributes."""
         batch = super().from_data_list(data_list, *args, **kwargs)
         batch.to(device=device)
         batch.__post_init__()
@@ -108,9 +106,9 @@ class ConformerBatch(Batch):
             mol = [mol]
 
         conformers = []
-        for i, mol in enumerate(mol):
-            for conformer in mol.GetConformers():
-                conformers.append(Conformer.from_rdkit(mol, conformer, **kwargs))
+        for m in mol:
+            for conformer in m.GetConformers():
+                conformers.append(Conformer.from_rdkit(m, conformer, **kwargs))
 
         batch = cls.from_data_list(conformers, device=device)
         return batch
@@ -120,6 +118,9 @@ class ConformerBatch(Batch):
         """Create a ConformerBatch from a list of ASE Atoms objects."""
         conformers = [Conformer.from_ase(a) for a in atoms_list]
         return cls.from_data_list(conformers, device=device)
+
+    def to_data_list(self):
+        return [self.conformer(i) for i in range(self.n_conformers)]
 
     def to_rdkit(self):
         """Convert each conformer in the batch to an RDKit Mol object."""

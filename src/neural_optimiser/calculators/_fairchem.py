@@ -42,7 +42,7 @@ class FAIRChemCalculator(Calculator):
         raise NotImplementedError("FAIRChemCalculator is not yet implemented.")
 
     def non_batched_to_atomic_data(self, batch: Data | Batch) -> Batch:
-        ase_atoms = [batch.conformer(i).to_ase() for i in range(batch.n_conformers)]
+        ase_atoms = [conformer.to_ase() for conformer in batch.to_data_list()]
         atomic_data = [
             AtomicData.from_ase(
                 atoms, r_edges=True, radius=self.radius, max_neigh=self.max_neighbours

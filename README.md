@@ -97,7 +97,7 @@ for smiles in smiles_list:
 big_batch = ConformerBatch.from_rdkit(mols)  # creates one Conformer per RDKit conformer
 
 # Dataset/DataLoader -> yields ConformerBatch
-dataset = ConformerDataset([big_batch.conformer(i) for i in range(big_batch.n_conformers)])
+dataset = ConformerDataset(big_batch.to_data_list())
 dataloader = ConformerDataLoader(dataset, batch_size=8, device="cpu", shuffle=True, num_workers=0)
 
 # Configure optimiser and attach a calculator that provides forces
