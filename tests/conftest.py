@@ -11,11 +11,13 @@ from rdkit.Chem import AllChem
 
 @pytest.fixture(autouse=True)
 def set_torch_seed():
+    """Set a fixed random seed for PyTorch for reproducible tests."""
     torch.manual_seed(42)
 
 
 @pytest.fixture
 def mol():
+    """Simple RDKit molecule with 3D coordinates."""
     mol = Chem.MolFromSmiles("CCO")
     mol = Chem.AddHs(mol)
     code = AllChem.EmbedMolecule(mol)
@@ -26,6 +28,7 @@ def mol():
 
 @pytest.fixture
 def mol2():
+    """Simple RDKit molecule with 3D coordinates."""
     mol = Chem.MolFromSmiles("CC")
     mol = Chem.AddHs(mol)
     code = AllChem.EmbedMolecule(mol)
@@ -36,17 +39,43 @@ def mol2():
 
 @pytest.fixture
 def atoms():
+    """Simple ASE Atoms object."""
     return molecule("H2O")
 
 
 @pytest.fixture
 def atoms2():
+    """Simple ASE Atoms object."""
     return molecule("NH3")
 
 
 @pytest.fixture
 def batch(atoms):
+    """Single-conformer batch for testing."""
     return ConformerBatch.from_ase([atoms], device="cpu")
+
+
+@pytest.fixture
+def minimised_batch(atoms, atoms2):
+    """Two-conformer batch with optimisation trajectory data for testing."""
+    batch = ConformerBatch.from_ase([atoms, atoms2], device="cpu")
+
+    # Attach optimisation trajectory tensors: 2 steps
+    pos = batch.pos
+    batch.forces = torch.zeros_like(pos)  # [n_atoms, 3]
+
+    batch.pos_dt = torch.stack([pos + 0.1, pos + 0.2], dim=0)  # [2, n_atoms, 3]
+    batch.forces_dt = torch.stack(
+        [batch.forces.clone(), batch.forces.clone()], dim=0
+    )  # [2, n_atoms, 3]
+
+    # Per-conformer energies and per-step energies
+    batch.energies = torch.tensor([-1.0, -2.0], dtype=torch.float32)  # [n_confs]
+    batch.energies_dt = torch.tensor(  # [2, n_confs]
+        [[-0.8, -1.8], [-1.0, -2.0]], dtype=torch.float32
+    )
+
+    return batch
 
 
 class DummyOptimiser(Optimiser):
@@ -61,11 +90,15 @@ class DummyOptimiser(Optimiser):
 
 
 class ZeroCalculator:
+    """Calculator that returns zero energy and forces."""
+
     def __call__(self, batch):
         return torch.zeros(batch.n_conformers), torch.zeros_like(batch.pos)
 
 
 class ConstCalculator:
+    """Constant forces and zero energy: value applied to all atoms."""
+
     def __init__(self, value: float):
         self.value = float(value)
 
@@ -89,16 +122,20 @@ class PerConfConstCalculator:
 
 @pytest.fixture
 def dummy_optimiser_cls():
+    """A minimal concrete optimiser class."""
     return DummyOptimiser
 
 
 @pytest.fixture
 def zero_calculator():
+    """A calculator that returns zero energy and forces."""
     return ZeroCalculator()
 
 
 @pytest.fixture
 def const_calculator_factory():
+    """A factory for calculators that return constant forces."""
+
     def _make(value: float):
         return ConstCalculator(value)
 
@@ -107,6 +144,8 @@ def const_calculator_factory():
 
 @pytest.fixture
 def per_conf_const_calculator_factory():
+    """A factory for calculators that return constant forces per conformer."""
+
     def _make(values):
         return PerConfConstCalculator(values)
 
@@ -115,6 +154,7 @@ def per_conf_const_calculator_factory():
 
 @pytest.fixture
 def mace_calculator(scope="session"):
+    """A MACE calculator for testing (if MACE is installed)."""
     pytest.importorskip("mace", reason="MACE not installed")
 
     model_paths = test_dir / "models" / "MACE_SPICE2_NEUTRAL.model"
