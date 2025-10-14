@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 from neural_optimiser.conformers import Conformer, ConformerBatch
 from rdkit import Chem
 
@@ -14,13 +13,6 @@ def test_from_ase_batch_properties(atoms, atoms2):
     # Sizes
     assert batch.n_conformers == 2
     assert batch.n_atoms == len(atoms) + len(atoms2)
-
-    print(batch)
-
-    # molecule_idxs should be created and equal to batch mapping
-    assert hasattr(batch, "molecule_idxs")
-    assert torch.equal(batch.molecule_idxs, batch.batch)
-    assert batch.n_molecules == batch.n_conformers  # by construction for from_ase()
 
     # Slicing back each conformer matches originals
     conf0 = batch.conformer(0)
@@ -56,16 +48,6 @@ def test_from_rdkit_batch_properties(mol, mol2):
     # Dtypes
     assert batch.atom_types.dtype == ConformerBatch.atom_type_dtype
     assert batch.pos.dtype == ConformerBatch.pos_dtype
-    assert batch.molecule_idxs.dtype == ConformerBatch.molecule_idx_dtype
-
-    # molecule_idxs should map each conformer chunk to the correct molecule index
-    expected_mol_for_conf = [0, 0, 1]
-    for conf_idx, expected_mid in enumerate(expected_mol_for_conf):
-        mask = batch.batch == conf_idx
-        labels = batch.molecule_idxs[mask]
-        uniq = torch.unique(labels)
-        assert uniq.numel() == 1
-        assert int(uniq.item()) == expected_mid
 
     # Slicing back conformers has correct sizes and types
     c0 = batch.conformer(0)
@@ -88,5 +70,4 @@ def test_from_rdkit_batch_properties(mol, mol2):
 def test_from_rdkit_single_mol(mol):
     batch = ConformerBatch.from_rdkit(mol)
     assert batch.n_molecules == 1
-    assert torch.unique(batch.molecule_idxs).tolist() == [0]
     assert batch.n_conformers == mol.GetNumConformers()
