@@ -1,3 +1,5 @@
+from typing import Any
+
 import torch
 from ase import Atoms
 from loguru import logger
@@ -65,15 +67,31 @@ class ConformerBatch(Batch):
         If step is not given and optimisation has been performed, the converged structure is
         returned.
         """
-        kwargs = {}
+        kwargs: dict[str, Any] = {}
 
         for k, v in self.__dict__["_store"].items():
-            if torch.is_tensor(v) and v.size(0) == self.n_atoms:
+            if k in ["batch", "ptr"]:
+                continue
+            elif torch.is_tensor(v) and v.dim() == 1 and v.size(0) == self.n_atoms:
+                # e.g. atom_types
                 kwargs[k] = v[self.batch == idx]
-            elif torch.is_tensor(v) and v.size(0) == self.n_conformers:
+            elif torch.is_tensor(v) and v.dim() == 1 and v.size(0) == self.n_conformers:
+                # e.g. energies, charges, spins
+                kwargs[k] = v[idx]
+            elif torch.is_tensor(v) and v.dim() == 2 and v.size(0) == self.n_atoms:
+                # e.g. pos, forces
+                kwargs[k] = v[self.batch == idx]
+            elif torch.is_tensor(v) and v.dim() == 3 and v.size(1) == self.n_atoms:
+                # e.g. pos_dt, forces_dt
+                kwargs[k] = v[:, self.batch == idx, :]
+            elif isinstance(v, str):
+                # e.g. device
+                kwargs[k] = v
+            elif isinstance(v, list) and len(v) == self.n_conformers:
+                # e.g. smiles
                 kwargs[k] = v[idx]
             else:
-                logger.warning(f"Attribute {k} not added to Conformer, shape {v.shape}.")
+                logger.warning(f"Attribute {k} not added to Conformer ({v}).")
 
         if step is not None:  # if optimisation has been performed
             if hasattr(self, "pos_dt"):
