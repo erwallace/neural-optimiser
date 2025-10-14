@@ -84,6 +84,9 @@ class ConformerBatch(Batch):
             elif torch.is_tensor(v) and v.dim() == 3 and v.size(1) == self.n_atoms:
                 # e.g. pos_dt, forces_dt
                 kwargs[k] = v[:, self.batch == idx, :]
+            elif torch.is_tensor(v) and v.dim() == 2 and v.size(0) == self.n_conformers:
+                # e.g. energies_dt
+                kwargs[k] = v[:, idx]
             elif isinstance(v, str):
                 # e.g. device
                 kwargs[k] = v
@@ -111,10 +114,127 @@ class ConformerBatch(Batch):
         return batch
 
     @classmethod
-    def from_data_list(cls, data_list: list, device: str = "cpu", *args, **kwargs):
-        """Wrap Batch.from_data_list to finalise attributes."""
+    def from_data_list(cls, data_list: list[Conformer], device: str = "cpu", *args, **kwargs):
+        """Create a ConformerBatch from a list of Conformer objects."""
+        if len(data_list) == 0:
+            raise ValueError("from_data_list received an empty data_list")
+
+        # Gather union of keys and basic graph sizes
+        all_keys = set()
+        num_nodes_list = []
+        num_edges_list = []
+        for d in data_list:
+            # PyG Data has keys() and len(d)
+            all_keys.update(list(d.keys()))
+            # num_nodes and num_edges
+            n_nodes = int(getattr(d, "num_nodes", 0) or 0)
+            if n_nodes == 0 and hasattr(d, "x"):
+                # fallback if num_nodes not filled
+                try:
+                    n_nodes = int(d.x.size(0))
+                except Exception:
+                    n_nodes = 0
+            num_nodes_list.append(n_nodes)
+
+            eidx = getattr(d, "edge_index", None)
+            if eidx is not None and hasattr(eidx, "size"):
+                n_edges = int(eidx.size(1))
+            else:
+                n_edges = int(getattr(d, "num_edges", 0) or 0)
+            num_edges_list.append(n_edges)
+
+        # Keys that core batching should NOT touch (we will handle below)
+        exclude_keys = set()
+        reserved = {"edge_index", "ptr", "batch"}  # always left to super()
+
+        def is_tensor(v):
+            return isinstance(v, torch.Tensor)
+
+        # Decide exclusion per key using shape/type heuristics
+        for key in sorted(all_keys):
+            if key in reserved:
+                continue
+
+            vals = [getattr(d, key, None) for d in data_list]
+            # If all None, exclude and set later as None
+            if all(v is None for v in vals):
+                exclude_keys.add(key)
+                continue
+
+            # Mixed types => exclude
+            types = {type(v) for v in vals}
+            if len(types - {type(None)}) > 1:
+                exclude_keys.add(key)
+                continue
+
+            # If any non-tensor (str, dict, list, number) => exclude (we'll listify/stack)
+            if not all((v is None) or is_tensor(v) for v in vals):
+                exclude_keys.add(key)
+                continue
+
+            # All tensors (or None). Heuristics:
+            # - Node-level: size(0) == num_nodes => let super() concat along dim=0
+            # - Edge-level: size(0) == num_edges => let super() concat along dim=0
+            # - Otherwise:
+            #     * If shapes all equal (ignoring None) => exclude and stack
+            #     * Else => exclude and keep list
+            is_node_level = True
+            is_edge_level = True
+
+            for i, v in enumerate(vals):
+                if v is None:
+                    continue
+
+                # Node-level check
+                if v.dim() == 0 or v.size(0) != num_nodes_list[i]:
+                    is_node_level = False
+                # Edge-level check
+                if v.dim() == 0 or v.size(0) != num_edges_list[i]:
+                    is_edge_level = False
+
+            if not is_node_level and not is_edge_level:
+                # Not safely concatenable along dim 0 by super()
+                exclude_keys.add(key)
+                continue
+            # else: let super() handle concatenation
+
+        # Let super() collate the safe attrs, ignoring those we want custom handling
+        kwargs = dict(kwargs or {})
+        existing_exclude = set(kwargs.get("exclude_keys", []))
+        kwargs["exclude_keys"] = sorted(existing_exclude.union(exclude_keys))
+
         batch = super().from_data_list(data_list, *args, **kwargs)
-        batch.to(device=device)
+
+        # Now attach the excluded keys with robust handling
+        for key in sorted(exclude_keys):
+            vals = [getattr(d, key, None) for d in data_list]
+
+            # All None -> set None
+            if all(v is None for v in vals):
+                setattr(batch, key, None)
+                continue
+
+            # If all tensors and shapes equal -> stack along new batch dim
+            if all((v is not None) and is_tensor(v) for v in vals):
+                shapes = [tuple(v.shape) for v in vals]
+                if len(set(shapes)) == 1:
+                    try:
+                        stacked = torch.stack(vals, dim=0)
+                        setattr(batch, key, stacked.to(device))
+                        continue
+                    except Exception:
+                        pass  # fallback to list below
+
+            # If all numeric scalars -> make a 1D tensor
+            if all(isinstance(v, int | float) for v in vals):
+                setattr(batch, key, torch.tensor(vals, device=device))
+                continue
+
+            # Fallback: keep as a python list (do not force device)
+            setattr(batch, key, vals)
+
+        # Device + finalise
+        batch = batch.to(device=device)
         batch.__post_init__()
         return batch
 
