@@ -45,7 +45,7 @@ This example uses `neural_optimiser.optimise._bfgs.BFGS`, and a dummy calculator
 ```python
 from ase.build import molecule
 
-from neural_optimiser.optimise import BFGS
+from neural_optimiser.optimisers import BFGS
 from neural_optimiser.calculators import RandomCalculator
 from neural_optimiser.conformers import ConformerBatch
 
@@ -83,7 +83,7 @@ from rdkit.Chem import AllChem
 
 from neural_optimiser.conformers import Conformer, ConformerBatch
 from neural_optimiser.datasets.base import ConformerDataset, ConformerDataLoader
-from neural_optimiser.optimise import BFGS
+from neural_optimiser.optimisers import BFGS
 from neural_optimiser.calculators import RandomCalculator
 
 # Build a pool of conformers from RDKit molecules
