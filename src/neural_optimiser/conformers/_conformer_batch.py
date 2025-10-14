@@ -120,6 +120,7 @@ class ConformerBatch(Batch):
         return cls.from_data_list(conformers, device=device)
 
     def to_data_list(self):
+        """Convert the batch back to a list of Conformer objects."""
         return [self.conformer(i) for i in range(self.n_conformers)]
 
     def to_rdkit(self):
