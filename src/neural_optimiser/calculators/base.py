@@ -27,7 +27,7 @@ class Calculator(ABC):
 
     @abstractmethod
     def _calculate(self, batch: Data | Batch) -> tuple[torch.Tensor, torch.Tensor]:
-        """Return (energies, forces) from the calulator."""
+        """Return (energies, forces) from the calculator."""
         ...
 
     @abstractmethod
