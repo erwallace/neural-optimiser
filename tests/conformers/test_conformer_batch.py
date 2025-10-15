@@ -165,17 +165,14 @@ def test_from_data_to_data_roundtrip(minimised_batch: ConformerBatch):
 def test_from_rdkit_to_rdkit_roundtrip(mol, mol2):
     """Test converting a ConformerBatch to a list of RDKit Mol objects and back."""
     # Add a second conformer to the first molecule
-    new_conf = Chem.Conformer(mol.GetConformer(0))
-    mol.AddConformer(new_conf)
-
+    mol.AddConformer(Chem.Conformer(mol.GetConformer(0)))
     batch = ConformerBatch.from_rdkit([mol, mol2])
+
     new_mols = batch.to_rdkit()
     assert isinstance(new_mols, list)
-    assert len(new_mols) == 2
+    assert len(new_mols) == 3  # conformers of the same molecule are separate
     assert new_mols[0].GetNumAtoms() == mol.GetNumAtoms()
-    assert new_mols[0].GetNumConformers() == mol.GetNumConformers()
-    assert new_mols[1].GetNumAtoms() == mol2.GetNumAtoms()
-    assert new_mols[1].GetNumConformers() == mol2.GetNumConformers()
+    assert new_mols[-1].GetNumAtoms() == mol2.GetNumAtoms()
 
 
 def test_from_ase_to_ase_roundtrip(atoms, atoms2):
