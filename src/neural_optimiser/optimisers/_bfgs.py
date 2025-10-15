@@ -1,7 +1,6 @@
 import torch
-from loguru import logger
 
-from neural_optimiser.optimise.base import Optimiser
+from neural_optimiser.optimisers.base import Optimiser
 
 
 class BFGS(Optimiser):
@@ -18,8 +17,6 @@ class BFGS(Optimiser):
         self._f0: dict[int, torch.Tensor] = {}
 
         super().__init__(max_step, steps, fmax, fexit)
-
-        logger.info("Running BFGS optimiser")
 
     def _reset_batch_state(self) -> None:
         """Reset any per-batch state before starting a new batch."""

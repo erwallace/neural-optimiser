@@ -55,13 +55,32 @@ class Conformer(Data):
         if self.pos.dtype != self.pos_dtype:
             raise ValueError(f"pos must have dtype {self.pos_dtype}, got {self.pos.dtype}")
 
+    @property
+    def n_atoms(self) -> int:
+        """Number of atoms in the conformer."""
+        return self.pos.size(0)
+
+    @property
+    def n_conformers(self) -> int:
+        """Number of conformers (needed for Optimiser compatibility)."""
+        return 1
+
     @classmethod
     def from_ase(cls, atoms: Atoms, **kwargs) -> "Conformer":
         """Construct Conformer from ASE Atoms object."""
         z = np.asarray(atoms.get_atomic_numbers(), dtype=np.int64)
         pos = np.asarray(atoms.get_positions(), dtype=np.float32)
 
-        return cls(atom_types=torch.from_numpy(z), pos=torch.from_numpy(pos), **kwargs)
+        if "charge" not in kwargs:
+            kwargs["charge"] = atoms.info.get("charge", 0)
+        if "spin" not in kwargs:
+            kwargs["spin"] = atoms.info.get("spin", 1)
+
+        return cls(
+            atom_types=torch.from_numpy(z),
+            pos=torch.from_numpy(pos),
+            **kwargs,
+        )
 
     @classmethod
     def from_rdkit(cls, mol: Chem.Mol, conf: Chem.Conformer | None = None, **kwargs) -> "Conformer":
@@ -90,28 +109,30 @@ class Conformer(Data):
             p = conf.GetAtomPosition(i)
             pos[i] = (float(p.x), float(p.y), float(p.z))
 
+        if "charge" not in kwargs:
+            kwargs["charge"] = Chem.GetFormalCharge(mol)
+        if "spin" not in kwargs:
+            kwargs["spin"] = hunds_rule(mol)
+        if "smiles" not in kwargs:
+            kwargs["smiles"] = Chem.MolToSmiles(mol)
+
         return cls(
             atom_types=torch.from_numpy(z),
             pos=torch.from_numpy(pos),
-            smiles=Chem.MolToSmiles(mol),
             **kwargs,
         )
-
-    @property
-    def n_atoms(self) -> int:
-        """Number of atoms in the conformer."""
-        return self.pos.size(0)
-
-    @property
-    def n_conformers(self) -> int:
-        """Number of conformers (needed for Optimiser compatibility)."""
-        return 1
 
     def to_ase(self) -> Atoms:
         """Convert to ASE Atoms."""
         numbers = self.atom_types.detach().cpu().numpy().astype(int)
         positions = self.pos.detach().cpu().numpy().astype(np.float32)
-        return Atoms(numbers=numbers, positions=positions)
+        atoms = Atoms(numbers=numbers, positions=positions)
+
+        for k, v in self.__dict__["_store"].items():
+            if not isinstance(v, torch.Tensor):
+                atoms.info[k] = v
+
+        return atoms
 
     def to_rdkit(self) -> Chem.Mol:
         """Convert to an RDKit Mol with a single 3D conformer (no bonds)."""
@@ -132,9 +153,9 @@ class Conformer(Data):
             conf.SetAtomPosition(i, Point3D(float(x), float(y), float(zc)))
         mol.AddConformer(conf, assignId=True)
 
-        # Optionally store SMILES as a property if available
-        if getattr(self, "smiles", None):
-            mol.SetProp("_Smiles", str(self.smiles))
+        for k, v in self.__dict__["_store"].items():
+            if not isinstance(v, torch.Tensor):
+                mol.SetProp(k, str(v))
 
         return mol
 
@@ -164,6 +185,14 @@ class Conformer(Data):
             raise ValueError("dim must be 2 or 3")
 
 
+def hunds_rule(mol: Chem.Mol) -> int:
+    """Calculate spin multiplicity using Hund's rule."""
+    num_radical_electrons = sum(atom.GetNumRadicalElectrons() for atom in mol.GetAtoms())
+    total_electronic_spin = num_radical_electrons / 2
+    spin_multiplicity = 2 * total_electronic_spin + 1
+    return int(spin_multiplicity)
+
+
 if __name__ == "__main__":
     from ase.build import molecule
     from rdkit.Chem import AllChem
@@ -175,13 +204,16 @@ if __name__ == "__main__":
     conformer = Conformer.from_rdkit(mol)
     print(conformer)
     d2 = conformer.plot(dim=2)
-    d2.show()
+    # d2.show()
     d3 = conformer.plot(dim=3)
-    d3.show()
+    # d3.show()
+
+    conformer2 = Conformer.from_rdkit(mol, charge=4)
+    print(conformer2.charge)
 
     # Example usage: ASE
     atoms = molecule("H2O")
     conformer_ase = Conformer.from_ase(atoms)
     print(conformer_ase)
     d3 = conformer_ase.plot(dim=3)
-    d3.show()
+    # d3.show()

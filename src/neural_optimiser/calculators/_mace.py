@@ -9,7 +9,7 @@ from neural_optimiser.calculators.base import Calculator
 class MACECalculator(Calculator):
     """Calculator using a MACE model for energy and force predictions."""
 
-    def __init__(self, model_paths: str, device: str = "cpu"):
+    def __init__(self, model_paths: str, device: str = "cpu", max_neighbours: int = 32):
         try:
             from mace.tools.utils import AtomicNumberTable
         except ImportError:
@@ -23,10 +23,18 @@ class MACECalculator(Calculator):
             )
 
         self.device = device
+        self.max_neighbours = max_neighbours
+        self.model_paths = model_paths
         self.model = torch.load(f=model_paths, map_location=device, weights_only=False)
         self.model.requires_grad_(False).eval().to(device)
 
         self._z_table = AtomicNumberTable([int(z) for z in self.model.atomic_numbers])
+
+    def __repr__(self) -> str:
+        return (
+            f"MACECalculator(model_paths={self.model_paths}, device={self.device}, "
+            f"max_neighbours={self.max_neighbours})"
+        )
 
     def _calculate(self, batch: Data | Batch) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute energies and forces for a batch of conformers using the MACE model."""
@@ -34,10 +42,15 @@ class MACECalculator(Calculator):
         output = self.model(atomic_data, compute_force=True)
         return output["energy"], output["forces"]
 
+    def get_energies(self, batch: Data | Batch) -> torch.Tensor:
+        """Compute energies for a batch of conformers using the MACE model."""
+        atomic_data = self.to_atomic_data(batch)
+        output = self.model(atomic_data, compute_force=False)
+        return output["energy"]
+
     def to_atomic_data(
         self,
         batch: Data | Batch,
-        max_num_neighbors: int | None = 32,
     ) -> Batch:
         """Convert a ConformerBatch into a torch_geometric Batch[Data] with MACE fields."""
         self._validate_batch(batch)
@@ -67,7 +80,7 @@ class MACECalculator(Calculator):
             r=float(self.model.r_max),
             batch=batch.batch,
             loop=False,
-            max_num_neighbors=max_num_neighbors,
+            max_num_neighbors=self.max_neighbours,
         )  # [2, E]
         edge_graph = batch.batch[full_edge_index[0]]
 
@@ -201,7 +214,7 @@ if __name__ == "__main__":
     model_paths = "./models/MACE_SPICE2_NEUTRAL.model"
     calculator = MACECalculator(model_paths=model_paths, device="cpu")
 
-    e, f = calculator.calculate(batch)
+    e, f = calculator(batch)
 
     from mace.calculators.mace import MACECalculator as MACECalc
 
