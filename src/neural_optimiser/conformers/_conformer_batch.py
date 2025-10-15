@@ -21,7 +21,7 @@ class ConformerBatch(Batch):
 
         self.device = device
         self.__post_init__()
-        self.to(self.device)
+        self.to(device)
 
     def __post_init__(self):
         """Validate attributes."""
@@ -70,7 +70,7 @@ class ConformerBatch(Batch):
         kwargs: dict[str, Any] = {}
 
         for k, v in self.__dict__["_store"].items():
-            if k in ["batch", "ptr"]:
+            if k in ["batch", "ptr", "device"]:
                 continue
             elif torch.is_tensor(v) and v.dim() == 1 and v.size(0) == self.n_atoms:
                 # e.g. atom_types
@@ -87,9 +87,6 @@ class ConformerBatch(Batch):
             elif torch.is_tensor(v) and v.dim() == 2 and v.size(1) == self.n_conformers:
                 # e.g. energies_dt
                 kwargs[k] = v[:, idx]
-            elif isinstance(v, str):
-                # e.g. device
-                kwargs[k] = v
             elif isinstance(v, list) and len(v) == self.n_conformers:
                 # e.g. smiles
                 kwargs[k] = v[idx]
@@ -104,7 +101,9 @@ class ConformerBatch(Batch):
             else:
                 raise ValueError(f"Cannot return step {step}, no pos_dt attribute found in batch.")
 
-        return Conformer(**kwargs)
+        c = Conformer(**kwargs)
+        c.to(self.device)
+        return c
 
     @classmethod
     def cat(cls, batches: list["ConformerBatch"]) -> "ConformerBatch":

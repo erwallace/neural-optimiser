@@ -83,6 +83,11 @@ def test_conformer(minimised_batch: ConformerBatch):
 
     # Check conformer 1 without step (uses base pos/forces)
     c1 = b.conformer(idx=1)
+
+    for attr in b.__dict__["_store"]:
+        if attr not in ["batch", "ptr", "device"]:
+            assert hasattr(c1, attr)
+
     mask1 = b.batch == 1
     assert torch.allclose(c1.pos, b.pos[mask1], atol=1e-7)
     assert torch.allclose(c1.forces, b.forces[mask1], atol=1e-7)
@@ -98,7 +103,7 @@ def test_conformer_with_step(minimised_batch: ConformerBatch):
     assert c0.pos.shape == (mask0.sum().item(), 3)
     assert torch.allclose(c0.pos, b.pos_dt[1][mask0], atol=1e-7)
     assert torch.allclose(c0.forces, b.forces_dt[1][mask0], atol=1e-7)
-    assert torch.isclose(c0.energy, b.energies_dt[1, 0])
+    assert torch.isclose(c0.energies, b.energies_dt[1, 0])
 
 
 def test_to_data_list(minimised_batch: ConformerBatch, atoms, atoms2):
