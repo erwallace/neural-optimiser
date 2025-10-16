@@ -4,7 +4,7 @@ description = "Batched optimisation algorithms for neural network potential driv
 authors = [{name = "Ewan Wallace", email = "erw@wallace2.com"}]
 license = "Apache-2.0"
 dynamic = ["version"]
-requires-python = ">=3.11"
+requires-python = "==3.12.*"
 readme = {file = "README.md", content-type = "text/markdown"}
 
 dependencies = [
@@ -14,7 +14,7 @@ dependencies = [
     "loguru",
     "universal-pathlib",
     "torch_geometric",
-    "torch",
+    "torch==2.8.0",
 ]
 
 [project.optional-dependencies]
@@ -22,6 +22,11 @@ dev = [
     "pytest",
     "pytest-cov",
     "pre-commit",
+]
+mace = [
+    "mace-torch",
+    "cuequivariance_torch",
+    "torch-cluster",
 ]
 
 [project.urls]

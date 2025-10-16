@@ -14,10 +14,12 @@ Batched optimisation algorithms for neural network potential–driven molecular 
 
 ```bash
 pip install neural-optimiser
+
+pip install neural-optimiser[mace]
 ```
 
 ### Install from source (uv)
-Prerequisites: Python 3.11+, PyTorch and torch-geometric compatible with your environment.
+Prerequisites: Python 3.12, PyTorch and torch-geometric compatible with your environment.
 
 Create a virtual environment and install the package:
 ```bash
