@@ -14,8 +14,6 @@ Batched optimisation algorithms for neural network potential–driven molecular 
 
 ```bash
 pip install neural-optimiser
-
-pip install neural-optimiser[mace]
 ```
 
 ### Install from source (uv)
@@ -32,6 +30,11 @@ Optional dev tools:
 ```bash
 uv pip install -e ".[dev]"
 uv run pre-commit install
+```
+
+Installation for specific calculators:
+```bash
+uv run install-mace
 ```
 
 **Note**: RDKit and torch-geometric may require platform-specific wheels. If uv/pip cannot resolve them directly, install those dependencies first using appropriate channels and then install this package.

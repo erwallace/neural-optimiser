@@ -24,6 +24,9 @@ dev = [
     "pre-commit",
 ]
 
+[tool.uv.scripts]
+install-mace = "uv pip install mace-torch torch-cluster cuequivariance_torch --no-build-isolation"
+
 [project.urls]
 Homepage = "https://github.com/erwallace/neural-optimiser"
 
