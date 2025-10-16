@@ -51,11 +51,7 @@ jobs:
         python -m pip install "uv==${{ env.UV_VERSION }}"
         uv --version
         uv venv
-        uv pip install -e ".[dev]"
-
-        # MACE specific installs
-        uv pip install mace-torch cuequivariance_torch torch-cluster --no-build-isolation
-
+        uv pip install -e ".[dev,mace]"
         uv run pre-commit install
         df -h
 

@@ -14,6 +14,8 @@ Batched optimisation algorithms for neural network potential–driven molecular 
 
 ```bash
 pip install neural-optimiser
+
+pip install neural-optimiser[mace]
 ```
 
 ### Install from source (uv)
