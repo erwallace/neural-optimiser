@@ -23,11 +23,6 @@ dev = [
     "pytest-cov",
     "pre-commit",
 ]
-mace = [
-    "mace-torch",
-    "cuequivariance_torch",
-    "torch-cluster",
-]
 
 [project.urls]
 Homepage = "https://github.com/erwallace/neural-optimiser"
