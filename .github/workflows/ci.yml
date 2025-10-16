@@ -54,8 +54,7 @@ jobs:
         uv pip install -e ".[dev]"
 
         # MACE specific installs
-        uv pip install torch-cluster --no-build-isolation
-        uv pip install mace-torch cuequivariance_torch
+        uv pip install mace-torch cuequivariance_torch torch-cluster --no-build-isolation
 
         uv run pre-commit install
         df -h
