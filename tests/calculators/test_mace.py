@@ -61,7 +61,7 @@ def test_validate_batch_missing_fields_raises(mace_calculator):
         mace_calculator._validate_batch(bad)
 
 
-def test_get_energies_matches_ase(mace_calculator, batch, atoms, test_dir):
+def test_get_energies_matches_ase(mace_calculator, batch, atoms):
     """Compare energies to ASE MACE for the same model."""
     pytest.importorskip("mace", reason="MACE not installed")
     from mace.calculators.mace import MACECalculator as MACECalc
