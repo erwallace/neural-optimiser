@@ -8,25 +8,24 @@ requires-python = ">=3.11"
 readme = {file = "README.md", content-type = "text/markdown"}
 
 dependencies = [
-    "rdkit",
-    "ase",
-    "numpy",
-    "loguru",
-    "universal-pathlib",
-    "torch_geometric",
+    "rdkit>=2025.3.6",
+    "ase>=3.26.0",
+    "numpy>=2.2.6",
+    "loguru>=0.7.3",
+    "universal-pathlib>=0.3.1",
+    "torch_geometric>=2.7.0",
     "torch==2.8.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest",
-    "pytest-cov",
-    "pre-commit",
+    "pytest>=8.4.2",
+    "pre-commit>=4.3.0",
 ]
 mace = [
-    "mace-torch",
-    "cuequivariance_torch",
-    "torch-cluster",
+    "mace-torch>=0.3.14",
+    "cuequivariance_torch>=0.7.0",
+    "torch-cluster>=1.6.3",
 ]
 
 [tool.uv]
