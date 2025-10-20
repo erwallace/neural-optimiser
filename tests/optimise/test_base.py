@@ -58,7 +58,7 @@ def test_fexit_triggers_early_exit_before_step(
     atoms, atoms2, dummy_optimiser_cls, const_calculator_factory
 ):
     """Test that fexit criterion triggers early exit before any step."""
-    batch = ConformerBatch.from_ase([atoms, atoms2], device="cpu")
+    batch = ConformerBatch.from_ase([atoms, atoms2])
 
     # sqrt(3)*1.0 ≈ 1.732 > fexit -> immediate early-exit
     opt = dummy_optimiser_cls(steps=100, fmax=None, fexit=0.5)
@@ -87,7 +87,7 @@ def test_step_limit_and_trajectory(batch, dummy_optimiser_cls, zero_calculator):
 
 def test_single_data_synthesizes_ptr(atoms, dummy_optimiser_cls, zero_calculator):
     """Test that a single Conformer (not ConformerBatch) is handled correctly."""
-    conf = Conformer.from_ase(atoms, device="cpu")
+    conf = Conformer.from_ase(atoms)
 
     opt = dummy_optimiser_cls(steps=2, fmax=None)
     opt.calculator = zero_calculator
@@ -236,7 +236,7 @@ def test_trajectory_multi_conformer_mixed_convergence(atoms, atoms2):
     from neural_optimiser.conformers import ConformerBatch
 
     # Build a two-conformer batch from fixtures
-    batch = ConformerBatch.from_ase([atoms, atoms2], device="cpu")
+    batch = ConformerBatch.from_ase([atoms, atoms2])
     device = batch.pos.device
     nconf = batch.n_conformers
     assert nconf == 2

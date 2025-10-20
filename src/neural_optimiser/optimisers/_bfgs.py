@@ -135,13 +135,14 @@ if __name__ == "__main__":
     from neural_optimiser.calculators import RandomCalculator
     from neural_optimiser.conformers import ConformerBatch
 
-    device = "cpu"
+    device = "cuda"
 
     atoms_list = [molecule("H2O"), molecule("NH3"), molecule("CH4")] * 10
-    batch = ConformerBatch.from_ase(atoms_list, device=device)
+    batch = ConformerBatch.from_ase(atoms_list)
+    batch.to(device)
 
     start = timer()
-    optimiser = BFGS(steps=2000, fmax=0.05, fexit=500.0)
+    optimiser = BFGS(steps=1000, fmax=0.05, fexit=500.0)
     optimiser.calculator = RandomCalculator()
     converged = optimiser.run(batch)
     end = timer()
@@ -153,14 +154,15 @@ if __name__ == "__main__":
     from neural_optimiser.calculators import MACECalculator
     from neural_optimiser.conformers import ConformerBatch
 
-    device = "cpu"
+    device = "cuda"
 
     atoms_list = [molecule("H2O"), molecule("NH3"), molecule("CH4")]
-    batch = ConformerBatch.from_ase(atoms_list, device=device)
+    batch = ConformerBatch.from_ase(atoms_list)
+    batch.to(device)
 
     start = timer()
     optimiser = BFGS(steps=20, fmax=0.05, fexit=500.0)
-    optimiser.calculator = MACECalculator(model_paths="./models/MACE_SPICE2_NEUTRAL.model")
+    optimiser.calculator = MACECalculator(model_paths="./models/MACE_SPICE2_NEUTRAL.model", device=device)
     converged = optimiser.run(batch)
     end = timer()
 

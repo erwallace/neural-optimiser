@@ -18,7 +18,6 @@ class Conformer(Data):
         atom_types: torch.Tensor,  # [n_atoms]
         pos: torch.Tensor,  # [n_atoms, 3]
         smiles: str | None = None,
-        device: str = "cpu",
         **kwargs: Any,
     ) -> None:
         super().__init__()
@@ -30,7 +29,6 @@ class Conformer(Data):
         for key, item in kwargs.items():
             setattr(self, key, item)
 
-        self.to(device)
         self.__post_init__()
 
     def __post_init__(self):

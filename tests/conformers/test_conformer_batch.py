@@ -85,7 +85,7 @@ def test_conformer(minimised_batch: ConformerBatch):
     c1 = b.conformer(idx=1)
 
     for attr in b.__dict__["_store"]:
-        if attr not in ["batch", "ptr", "device"]:
+        if attr not in ["batch", "ptr"]:
             assert hasattr(c1, attr)
 
     mask1 = b.batch == 1
@@ -143,8 +143,8 @@ def test_to_ase(minimised_batch: ConformerBatch, atoms, atoms2):
 
 def test_cat(atoms, atoms2):
     """Test concatenating multiple ConformerBatch objects."""
-    b1 = ConformerBatch.from_ase([atoms], device="cpu")
-    b2 = ConformerBatch.from_ase([atoms2], device="cpu")
+    b1 = ConformerBatch.from_ase([atoms])
+    b2 = ConformerBatch.from_ase([atoms2])
     cat = ConformerBatch.cat([b1, b2])
     assert isinstance(cat, ConformerBatch)
     assert cat.n_conformers == b1.n_conformers + b2.n_conformers
@@ -157,7 +157,7 @@ def test_cat(atoms, atoms2):
 def test_from_data_to_data_roundtrip(minimised_batch: ConformerBatch):
     """Test converting a ConformerBatch to a list of Data objects and back."""
     data_list = minimised_batch.to_data_list()
-    new_batch = ConformerBatch.from_data_list(data_list, device="cpu")
+    new_batch = ConformerBatch.from_data_list(data_list)
     assert isinstance(new_batch, ConformerBatch)
     assert new_batch.n_conformers == minimised_batch.n_conformers
     assert new_batch.n_atoms == minimised_batch.n_atoms

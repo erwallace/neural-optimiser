@@ -18,14 +18,14 @@ def _per_conf_step_norms(batch):
 
 
 def test_bfgs_requires_calculator_set(atoms):
-    batch = ConformerBatch.from_ase([atoms], device="cpu")
+    batch = ConformerBatch.from_ase([atoms])
     opt = BFGS(steps=1)
     with pytest.raises(AttributeError, match="calculator must be set"):
         opt.run(batch)
 
 
 def test_bfgs_initial_convergence_with_zero_forces(atoms, zero_calculator):
-    batch = ConformerBatch.from_ase([atoms], device="cpu")
+    batch = ConformerBatch.from_ase([atoms])
 
     opt = BFGS(steps=10, fmax=0.1)
     opt.calculator = zero_calculator
@@ -47,7 +47,7 @@ def test_bfgs_initial_convergence_with_zero_forces(atoms, zero_calculator):
 
 
 def test_bfgs_step_capped_and_state_updated(atoms, const_calculator_factory):
-    batch = ConformerBatch.from_ase([atoms], device="cpu")
+    batch = ConformerBatch.from_ase([atoms])
 
     opt = BFGS(steps=1, fmax=None, max_step=0.04)
     opt.calculator = const_calculator_factory(10.0)
@@ -64,7 +64,7 @@ def test_bfgs_step_capped_and_state_updated(atoms, const_calculator_factory):
 
 
 def test_bfgs_batched_independent_scaling(atoms, atoms2, per_conf_const_calculator_factory):
-    batch = ConformerBatch.from_ase([atoms, atoms2], device="cpu")
+    batch = ConformerBatch.from_ase([atoms, atoms2])
     opt = BFGS(steps=1, fmax=None, max_step=0.04)
     opt.calculator = per_conf_const_calculator_factory([1.0, 10.0])
 
@@ -80,7 +80,7 @@ def test_bfgs_batched_independent_scaling(atoms, atoms2, per_conf_const_calculat
 
 
 def test_bfgs_single_data_supported(atoms, const_calculator_factory):
-    conf = Conformer.from_ase(atoms, device="cpu")
+    conf = Conformer.from_ase(atoms)
 
     opt = BFGS(steps=2, fmax=None)
     opt.calculator = const_calculator_factory(1.0)

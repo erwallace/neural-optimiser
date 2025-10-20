@@ -36,7 +36,12 @@ uv run pre-commit install
 
 Installation for specific calculators:
 ```bash
-uv run install-mace
+uv pip install -e ".[mace]"
+```
+
+I also recommend running the following command after setup to ensure your torch, pyg and torch-cluster versions are all compatible.
+```bash 
+uv pip install torch-geometric torch-cluster -f https://data.pyg.org/whl/torch-{TORCH_VERSION}+cu{CUDA_VERSION}.html
 ```
 
 **Note**: RDKit and torch-geometric may require platform-specific wheels. If uv/pip cannot resolve them directly, install those dependencies first using appropriate channels and then install this package.
@@ -58,7 +63,8 @@ from neural_optimiser.conformers import ConformerBatch
 
 # Create a batch of molecules (each becomes a conformer)
 atoms_list = [molecule("H2O"), molecule("NH3"), molecule("CH4")]
-batch = ConformerBatch.from_ase(atoms_list, device="cpu")
+batch = ConformerBatch.from_ase(atoms_list)
+batch.to("cuda")  # if available
 
 # Configure optimiser and attach a calculator that provides forces
 optimiser = BFGS(steps=10, fmax=0.05, fexit=500.0, max_step=0.04)
@@ -105,7 +111,7 @@ big_batch = ConformerBatch.from_rdkit(mols)  # creates one Conformer per RDKit c
 
 # Dataset/DataLoader -> yields ConformerBatch
 dataset = ConformerDataset(big_batch.to_data_list())
-dataloader = ConformerDataLoader(dataset, batch_size=8, device="cpu", shuffle=True, num_workers=0)
+dataloader = ConformerDataLoader(dataset, batch_size=8, shuffle=True, num_workers=0)
 
 # Configure optimiser and attach a calculator that provides forces
 optimiser = BFGS(steps=10, fmax=0.05, fexit=500.0, max_step=0.04)
@@ -188,7 +194,7 @@ from neural_optimiser.conformers import Conformer, ConformerBatch
 
 # Build from ASE
 atoms_list = [molecule("H2O"), molecule("NH3"), molecule("CH4")]
-batch_ase = ConformerBatch.from_ase(atoms_list, device="cpu")
+batch_ase = ConformerBatch.from_ase(atoms_list)
 print("ASE batch:", batch_ase.n_molecules, batch_ase.n_conformers, batch_ase.n_atoms)
 
 # Slice a single conformer view
@@ -207,13 +213,13 @@ def rdkit_with_coords(smiles: str):
     return m
 
 mol_list = [rdkit_with_coords("O"), rdkit_with_coords("CCO")]
-batch_rd = ConformerBatch.from_rdkit(mol_list, device="cpu")
+batch_rd = ConformerBatch.from_rdkit(mol_list)
 print("RDKit batch:", batch_rd.n_molecules, batch_rd.n_conformers, batch_rd.n_atoms)
 
 # Build from a list of Conformer objects
 c1 = Conformer.from_ase(molecule("H2O"))
 c2 = Conformer.from_ase(molecule("NH3"))
-batch_list = ConformerBatch.from_data_list([c1, c2], device="cpu")
+batch_list = ConformerBatch.from_data_list([c1, c2])
 print("Data list batch:", batch_list.n_molecules, batch_list.n_conformers, batch_list.n_atoms)
 ```
 
