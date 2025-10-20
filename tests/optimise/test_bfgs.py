@@ -2,6 +2,7 @@ import math
 
 import pytest
 import torch
+from neural_optimiser.calculators import MACECalculator
 from neural_optimiser.conformers import Conformer, ConformerBatch
 from neural_optimiser.optimisers import BFGS
 
@@ -89,3 +90,33 @@ def test_bfgs_single_data_supported(atoms, const_calculator_factory):
     assert converged is False
     assert opt.nsteps == 2
     assert hasattr(conf, "pos_dt") and conf.pos_dt.shape == (3, conf.pos.shape[0], 3)
+
+
+def test_bfgs_integration(atoms, atoms2):
+    device = "cpu"
+    atoms_list = [atoms, atoms2]
+    batch = ConformerBatch.from_ase(atoms_list)
+    batch.to(device)
+
+    optimiser = BFGS(steps=100, fmax=0.05, fexit=500.0)
+    optimiser.calculator = MACECalculator(
+        model_paths="./models/MACE_SPICE2_NEUTRAL.model", device=device
+    )
+    converged = optimiser.run(batch)
+    assert converged is True
+
+
+def test_bfgs_integration_gpu(atoms, atoms2):
+    if not torch.cuda.is_available():
+        pytest.skip("CUDA not available; skipping GPU integration test.")
+    device = "cuda"
+    atoms_list = [atoms, atoms2]
+    batch = ConformerBatch.from_ase(atoms_list)
+    batch.to(device)
+
+    optimiser = BFGS(steps=100, fmax=0.05, fexit=500.0)
+    optimiser.calculator = MACECalculator(
+        model_paths="./models/MACE_SPICE2_NEUTRAL.model", device=device
+    )
+    converged = optimiser.run(batch)
+    assert converged is True
