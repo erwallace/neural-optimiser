@@ -40,7 +40,7 @@ uv pip install -e ".[mace]"
 ```
 
 I also recommend running the following command after setup to ensure your torch, pyg and torch-cluster versions are all compatible.
-```bash 
+```bash
 uv pip install torch-geometric torch-cluster -f https://data.pyg.org/whl/torch-{TORCH_VERSION}+cu{CUDA_VERSION}.html
 ```
 

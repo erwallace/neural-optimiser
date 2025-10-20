@@ -162,7 +162,9 @@ if __name__ == "__main__":
 
     start = timer()
     optimiser = BFGS(steps=20, fmax=0.05, fexit=500.0)
-    optimiser.calculator = MACECalculator(model_paths="./models/MACE_SPICE2_NEUTRAL.model", device=device)
+    optimiser.calculator = MACECalculator(
+        model_paths="./models/MACE_SPICE2_NEUTRAL.model", device=device
+    )
     converged = optimiser.run(batch)
     end = timer()
 

@@ -231,9 +231,7 @@ class ConformerBatch(Batch):
         return batch
 
     @classmethod
-    def from_rdkit(
-        cls, mol: list[Chem.Mol] | Chem.Mol, **kwargs
-    ) -> "ConformerBatch":
+    def from_rdkit(cls, mol: list[Chem.Mol] | Chem.Mol, **kwargs) -> "ConformerBatch":
         """Create a ConformerBatch from a list of RDKit Mol objects.
 
         Each Mol can have multiple conformers.
