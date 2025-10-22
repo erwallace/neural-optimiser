@@ -18,9 +18,9 @@ class ConformerDataset(Dataset):
         return self.conformers[idx]
 
 
-def collate_conformers(conformers: list[Conformer], device: str = "cpu") -> ConformerBatch:
+def collate_conformers(conformers: list[Conformer]) -> ConformerBatch:
     """Collate a list of Conformer into a ConformerBatch."""
-    return ConformerBatch.from_data_list(conformers, device=device)
+    return ConformerBatch.from_data_list(conformers)
 
 
 class ConformerDataLoader(DataLoader):
@@ -30,7 +30,6 @@ class ConformerDataLoader(DataLoader):
         self,
         dataset: ConformerDataset,
         batch_size: int = 1,
-        device: str = "cpu",
         shuffle: bool = False,
         num_workers: int = 0,
         **kwargs,
@@ -40,6 +39,6 @@ class ConformerDataLoader(DataLoader):
             batch_size=batch_size,
             shuffle=shuffle,
             num_workers=num_workers,
-            collate_fn=partial(collate_conformers, device=device),
+            collate_fn=partial(collate_conformers),
             **kwargs,
         )

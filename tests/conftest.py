@@ -52,13 +52,13 @@ def atoms2():
 @pytest.fixture
 def batch(atoms):
     """Single-conformer batch for testing."""
-    return ConformerBatch.from_ase([atoms], device="cpu")
+    return ConformerBatch.from_ase([atoms])
 
 
 @pytest.fixture
 def minimised_batch(atoms, atoms2):
     """Two-conformer batch with optimisation trajectory data for testing."""
-    batch = ConformerBatch.from_ase([atoms, atoms2], device="cpu")
+    batch = ConformerBatch.from_ase([atoms, atoms2])
 
     # Attach optimisation trajectory tensors: 2 steps
     pos = batch.pos

@@ -4,43 +4,58 @@ description = "Batched optimisation algorithms for neural network potential driv
 authors = [{name = "Ewan Wallace", email = "erw@wallace2.com"}]
 license = "Apache-2.0"
 dynamic = ["version"]
-requires-python = ">=3.11"
+requires-python = "==3.11.*"
 readme = {file = "README.md", content-type = "text/markdown"}
+urls = {Homepage = "https://github.com/erwallace/neural-optimiser"}
 
 dependencies = [
+    "torch==2.8.0",
+    "torch-cluster",
+    "torch-geometric==2.7.0",
+    "mace-torch",
+    "cuequivariance_torch",
     "rdkit",
     "ase",
     "numpy",
     "loguru",
     "universal-pathlib",
-    "torch_geometric",
-    "torch==2.8.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
-    "pytest-cov",
     "pre-commit",
 ]
-mace = [
-    "mace-torch",
-    "cuequivariance_torch",
-    "torch-cluster",
-]
 
-[tool.uv]
-no-build-isolation-package = ["torch-cluster"]
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torch-cluster = { index = "pyg-cu128" }
 
-[project.urls]
-Homepage = "https://github.com/erwallace/neural-optimiser"
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[[tool.uv.index]]
+name = "pyg-cu128"
+url = "https://data.pyg.org/whl/torch-2.8.0+cu128.html"
+format = "flat"
+explicit = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools_scm]
+local_scheme = "node-and-date"
+search_parent_directories = true
+version_scheme = "no-guess-dev"
+
 [build-system]
 requires = ["setuptools >= 65", "setuptools_scm[toml]>=6.2"]
 build-backend = 'setuptools.build_meta'
+
+[tool.ruff]
+line-length = 100
 
 [tool.ruff.lint]
 select = [
@@ -49,11 +64,3 @@ select = [
     "I", # isort
     "UP", # pyupgrade
 ]
-
-[tool.ruff]
-line-length = 100
-
-[tool.setuptools_scm]
-local_scheme = "node-and-date"
-search_parent_directories = true
-version_scheme = "no-guess-dev"
