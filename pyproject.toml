@@ -4,42 +4,58 @@ description = "Batched optimisation algorithms for neural network potential driv
 authors = [{name = "Ewan Wallace", email = "erw@wallace2.com"}]
 license = "Apache-2.0"
 dynamic = ["version"]
-requires-python = ">=3.11"
+requires-python = "==3.11.*"
 readme = {file = "README.md", content-type = "text/markdown"}
+urls = {Homepage = "https://github.com/erwallace/neural-optimiser"}
 
 dependencies = [
-    "rdkit>=2025.3.6",
-    "ase>=3.26.0",
-    "numpy>=2.2.6",
-    "loguru>=0.7.3",
-    "universal-pathlib>=0.3.1",
-    "torch_geometric>=2.7.0",
     "torch==2.8.0",
+    "torch-cluster",
+    "torch-geometric==2.7.0",
+    "mace-torch",
+    "cuequivariance_torch",
+    "rdkit",
+    "ase",
+    "numpy",
+    "loguru",
+    "universal-pathlib",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.4.2",
-    "pre-commit>=4.3.0",
-]
-mace = [
-    "mace-torch>=0.3.14",
-    "cuequivariance_torch>=0.7.0",
-    "torch-cluster>=1.6.3",
+    "pytest",
+    "pre-commit",
 ]
 
-[tool.uv]
-no-build-isolation-package = ["torch-cluster"]
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torch-cluster = { index = "pyg-cu128" }
 
-[project.urls]
-Homepage = "https://github.com/erwallace/neural-optimiser"
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[[tool.uv.index]]
+name = "pyg-cu128"
+url = "https://data.pyg.org/whl/torch-2.8.0+cu128.html"
+format = "flat"
+explicit = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools_scm]
+local_scheme = "node-and-date"
+search_parent_directories = true
+version_scheme = "no-guess-dev"
+
 [build-system]
 requires = ["setuptools >= 65", "setuptools_scm[toml]>=6.2"]
 build-backend = 'setuptools.build_meta'
+
+[tool.ruff]
+line-length = 100
 
 [tool.ruff.lint]
 select = [
@@ -48,11 +64,3 @@ select = [
     "I", # isort
     "UP", # pyupgrade
 ]
-
-[tool.ruff]
-line-length = 100
-
-[tool.setuptools_scm]
-local_scheme = "node-and-date"
-search_parent_directories = true
-version_scheme = "no-guess-dev"

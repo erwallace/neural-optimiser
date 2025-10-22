@@ -9,22 +9,29 @@ Batched optimisation algorithms for neural network potential–driven molecular 
 - IO methods for RDkit molecules and ASE atoms objects.
 
 ## Installation
+Pre-requisities: Python 3.11, PyTorch and PyTorch Geometric compatible with your envirnment
+
+```bash
+# For example
+uv pip install torch==2.8.0 -f https://data.pyg.org/whl/torch-2.8.0+cu128.html
+uv pip install torch-geometric==2.7.0 torch-cluster -f https://data.pyg.org/whl/torch-2.8.0+cu128.html
+```
 
 ### Install from PyPi
 
 ```bash
 pip install neural-optimiser
-
-pip install neural-optimiser[mace]
 ```
 
 ### Install from source (uv)
-Prerequisites: Python 3.11/12, PyTorch and torch-geometric compatible with your environment.
-
-Create a virtual environment and install the package:
 ```bash
-uv venv .venv
+uv sync
+```
+or create a virtual environment and install the packages:
+```bash
+uv venv .venv --python 3.11
 source .venv/bin/activate
+# [install torch and torch-geometric as above]
 uv pip install -e .
 ```
 
@@ -33,18 +40,6 @@ Optional dev tools:
 uv pip install -e ".[dev]"
 uv run pre-commit install
 ```
-
-Installation for specific calculators:
-```bash
-uv pip install -e ".[mace]"
-```
-
-I also recommend running the following command after setup to ensure your torch, pyg and torch-cluster versions are all compatible.
-```bash
-uv pip install torch-geometric torch-cluster -f https://data.pyg.org/whl/torch-{TORCH_VERSION}+cu{CUDA_VERSION}.html
-```
-
-**Note**: RDKit and torch-geometric may require platform-specific wheels. If uv/pip cannot resolve them directly, install those dependencies first using appropriate channels and then install this package.
 
 ## Quick Start
 
@@ -108,6 +103,7 @@ for smiles in smiles_list:
     mols.append(m)
 
 big_batch = ConformerBatch.from_rdkit(mols)  # creates one Conformer per RDKit conformer
+big_batch.to("cuda")  # if available
 
 # Dataset/DataLoader -> yields ConformerBatch
 dataset = ConformerDataset(big_batch.to_data_list())
