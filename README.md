@@ -9,7 +9,7 @@ Batched optimisation algorithms for neural network potential–driven molecular 
 - IO methods for RDkit molecules and ASE atoms objects.
 
 ## Installation
-Pre-requisities: Python 3.11, PyTorch and PyTorch Geometric compatible with your envirnment
+Pre-requisities: Python 3.11, PyTorch and PyTorch Geometric compatible with your environment.
 
 ```bash
 # For example
@@ -136,9 +136,7 @@ class MyCalculator(Calculator):
         return energies, forces
 
     def to_atomic_data():
-        pass
-
-    def from_atomic_data():
+        # writing this in a batched format is crucial for GPU acceleration
         pass
 ```
 
