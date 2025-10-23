@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from loguru import logger
 from neural_optimiser.conformers import Conformer, ConformerBatch
 from rdkit import Chem
 
@@ -81,16 +82,26 @@ def test_conformer(minimised_batch: ConformerBatch):
     """Test slicing conformers at specific optimisation steps."""
     b = minimised_batch
 
-    # Check conformer 1 without step (uses base pos/forces)
-    c1 = b.conformer(idx=1)
+    # Capture Loguru WARNING+ logs and fail if any are emitted
+    records = []
+    sink_id = logger.add(lambda m: records.append(m), level="WARNING")
+    try:
+        c1 = b.conformer(idx=1)
 
-    for attr in b.__dict__["_store"]:
-        if attr not in ["batch", "ptr"]:
-            assert hasattr(c1, attr)
+        # Attributes present
+        for attr in b.__dict__["_store"]:
+            if attr not in ["batch", "ptr"]:
+                assert hasattr(c1, attr)
 
-    mask1 = b.batch == 1
-    assert torch.allclose(c1.pos, b.pos[mask1], atol=1e-7)
-    assert torch.allclose(c1.forces, b.forces[mask1], atol=1e-7)
+        # Values match base tensors
+        mask1 = b.batch == 1
+        assert torch.allclose(c1.pos, b.pos[mask1], atol=1e-7)
+        assert torch.allclose(c1.forces, b.forces[mask1], atol=1e-7)
+    finally:
+        logger.remove(sink_id)
+
+    # No warnings allowed
+    assert len(records) == 0
 
 
 def test_conformer_with_step(minimised_batch: ConformerBatch):
