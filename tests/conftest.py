@@ -60,19 +60,22 @@ def minimised_batch(atoms, atoms2):
     """Two-conformer batch with optimisation trajectory data for testing."""
     batch = ConformerBatch.from_ase([atoms, atoms2])
 
-    # Attach optimisation trajectory tensors: 2 steps
+    # Attach optimisation trajectory tensors: 4 steps
     pos = batch.pos
     batch.forces = torch.zeros_like(pos)  # [n_atoms, 3]
 
-    batch.pos_dt = torch.stack([pos + 0.1, pos + 0.2], dim=0)  # [2, n_atoms, 3]
+    batch.pos_dt = torch.stack(
+        [pos + 0.1, pos + 0.2, pos + 0.3, pos + 0.4], dim=0
+    )  # [4, n_atoms, 3]
     batch.forces_dt = torch.stack(
-        [batch.forces.clone(), batch.forces.clone()], dim=0
-    )  # [2, n_atoms, 3]
+        [batch.forces.clone(), batch.forces.clone(), batch.forces.clone(), batch.forces.clone()],
+        dim=0,
+    )  # [4, n_atoms, 3]
 
     # Per-conformer energies and per-step energies
     batch.energies = torch.tensor([-1.0, -2.0], dtype=torch.float32)  # [n_confs]
-    batch.energies_dt = torch.tensor(  # [2, n_confs]
-        [[-0.8, -1.8], [-1.0, -2.0]], dtype=torch.float32
+    batch.energies_dt = torch.tensor(  # [4, n_confs]
+        [[-0.8, -1.8], [-1.0, -2.0], [-1.2, -2.2], [-1.4, -2.4]], dtype=torch.float32
     )
 
     return batch

@@ -12,9 +12,6 @@ from neural_optimiser.conformers import Conformer
 class ConformerBatch(Batch):
     """A batch of molecular conformers."""
 
-    atom_type_dtype = torch.int64
-    pos_dtype = torch.float32
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.__post_init__()
@@ -35,12 +32,24 @@ class ConformerBatch(Batch):
                 f"atom_types and pos must have matching n_atoms, "
                 f"got {self.atom_types.size(0)} vs {self.pos.size(0)}"
             )
-        if self.atom_types.dtype != self.atom_type_dtype:
-            raise ValueError(
-                f"atom_types must have dtype {self.atom_type_dtype}, got {self.atom_types.dtype}"
-            )
-        if self.pos.dtype != self.pos_dtype:
-            raise ValueError(f"pos must have dtype {self.pos_dtype}, got {self.pos.dtype}")
+        if not self.pos.is_floating_point():
+            raise ValueError(f"pos must have a floating-point dtype, got {self.pos.dtype}")
+        if self.atom_types.is_floating_point():
+            raise ValueError(f"atom_types must have an int dtype, got {self.atom_types.dtype}")
+
+    def __repr__(self) -> str:
+        """Custom __repr__ to avoid 'ConformerConformerBatch' naming."""
+
+        def _format(value: Any) -> str:
+            """Helper to format values for the repr."""
+            if torch.is_tensor(value):  # e.g., pos=[100, 3]
+                return f"{list(value.shape)}"
+            if isinstance(value, list):  # e.g. atom_types=[10]
+                return f"[{len(value)}]"
+            return f"{value}"  # e.g. strings
+
+        info = [f"{key}={_format(value)}" for key, value in self.items()]
+        return f"ConformerBatch({', '.join(info)})"
 
     @property
     def n_molecules(self) -> int:
@@ -226,6 +235,12 @@ class ConformerBatch(Batch):
             # Fallback: keep as a python list
             setattr(batch, key, vals)
 
+        # Special handling for energies_dt (2D tensor [n_steps, n_conformers])
+        vals = [getattr(d, "energies_dt", None) for d in data_list]
+        if all((v is not None) for v in vals):
+            energies_dt = torch.stack(vals, dim=1)
+            setattr(batch, "energies_dt", energies_dt)
+
         # Finalise
         batch.__post_init__()
         return batch
@@ -265,64 +280,3 @@ class ConformerBatch(Batch):
     def to_ase(self):
         """Convert each conformer in the batch to an ASE Atoms object."""
         return [conformer.to_ase() for conformer in self.to_data_list()]
-
-
-if __name__ == "__main__":
-    from ase.build import molecule
-    from rdkit.Chem import AllChem
-
-    atoms_list = [molecule("H2O"), molecule("NH3")]
-    batch = ConformerBatch.from_ase(atoms_list)
-    print(batch)
-
-    confs = [Conformer.from_ase(conf) for conf in atoms_list]
-    batch = ConformerBatch.from_data_list(confs)
-    print(batch)
-
-    mols_list = [Chem.MolFromSmiles("CCO"), Chem.MolFromSmiles("CC")]
-    for i, mol in enumerate(mols_list):
-        mol = Chem.AddHs(mol)
-        AllChem.EmbedMolecule(mol)
-        mols_list[i] = mol
-    new_conf = Chem.Conformer(mols_list[0].GetConformer(0))
-    mols_list[0].AddConformer(new_conf)
-    batch = ConformerBatch.from_rdkit(mols_list)
-    print(batch)
-
-    print(batch.batch)
-
-    print(batch.conformer(0))
-
-    if hasattr(batch, "device"):
-        print(f"Batch device: {batch.device}")
-    else:
-        print("Batch device attribute not found.")
-
-    if hasattr(batch.pos, "device"):
-        print(f"Position tensor device: {batch.pos.device}")
-    else:
-        print("Position tensor device attribute not found.")
-
-    batch.to("cuda")
-
-    if hasattr(batch, "device"):
-        print(f"Batch device: {batch.device}")
-    else:
-        print("Batch device attribute not found.")
-
-    if hasattr(batch.pos, "device"):
-        print(f"Position tensor device: {batch.pos.device}")
-    else:
-        print("Position tensor device attribute not found.")
-
-    for k, v in batch.__dict__["_store"].items():
-        if hasattr(v, "device"):
-            print(f"Attribute {k} device: {v.device}")
-        else:
-            print(f"Attribute {k} device attribute not found.")
-
-    if torch.cuda.is_available():
-        device = "cuda"
-        batch.to(device)
-        assert batch.device == device, "Batch not moved to GPU"
-        print("batch sucessfully moved to gpu")

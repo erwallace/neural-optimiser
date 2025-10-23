@@ -10,9 +10,6 @@ from torch_geometric.data import Data
 
 
 class Conformer(Data):
-    atom_type_dtype = torch.int64
-    pos_dtype = torch.float32
-
     def __init__(
         self,
         atom_types: torch.Tensor,  # [n_atoms]
@@ -46,12 +43,10 @@ class Conformer(Data):
                 f"atom_types and pos must have matching n_atoms, "
                 f"got {self.atom_types.size(0)} vs {self.pos.size(0)}"
             )
-        if self.atom_types.dtype != self.atom_type_dtype:
-            raise ValueError(
-                f"atom_types must have dtype {self.atom_type_dtype}, got {self.atom_types.dtype}"
-            )
-        if self.pos.dtype != self.pos_dtype:
-            raise ValueError(f"pos must have dtype {self.pos_dtype}, got {self.pos.dtype}")
+        if not self.pos.is_floating_point():
+            raise ValueError(f"pos must have a floating-point dtype, got {self.pos.dtype}")
+        if self.atom_types.is_floating_point():
+            raise ValueError(f"atom_types must have an int dtype, got {self.atom_types.dtype}")
 
     @property
     def n_atoms(self) -> int:
@@ -189,29 +184,3 @@ def hunds_rule(mol: Chem.Mol) -> int:
     total_electronic_spin = num_radical_electrons / 2
     spin_multiplicity = 2 * total_electronic_spin + 1
     return int(spin_multiplicity)
-
-
-if __name__ == "__main__":
-    from ase.build import molecule
-    from rdkit.Chem import AllChem
-
-    # Example usage: RDKit
-    mol = Chem.MolFromSmiles("CCO")
-    mol = Chem.AddHs(mol)
-    AllChem.EmbedMolecule(mol)
-    conformer = Conformer.from_rdkit(mol)
-    print(conformer)
-    d2 = conformer.plot(dim=2)
-    # d2.show()
-    d3 = conformer.plot(dim=3)
-    # d3.show()
-
-    conformer2 = Conformer.from_rdkit(mol, charge=4)
-    print(conformer2.charge)
-
-    # Example usage: ASE
-    atoms = molecule("H2O")
-    conformer_ase = Conformer.from_ase(atoms)
-    print(conformer_ase)
-    d3 = conformer_ase.plot(dim=3)
-    # d3.show()

@@ -9,9 +9,6 @@ def test_from_ase_and_to_ase_roundtrip(atoms):
     """Test ASE -> Conformer -> ASE roundtrip."""
     conf = Conformer.from_ase(atoms)
 
-    assert conf.atom_types.dtype == Conformer.atom_type_dtype
-    assert conf.pos.dtype == Conformer.pos_dtype
-
     assert conf.atom_types.shape == (len(atoms),)
     assert conf.pos.shape == (len(atoms), 3)
     assert conf.charge == 0
@@ -29,8 +26,6 @@ def test_from_rdkit_and_to_rdkit_roundtrip(mol):
     conf = Conformer.from_rdkit(mol)
 
     n = mol.GetNumAtoms()
-    assert conf.atom_types.dtype == Conformer.atom_type_dtype
-    assert conf.pos.dtype == Conformer.pos_dtype
     assert conf.atom_types.shape == (n,)
     assert conf.pos.shape == (n, 3)
     assert isinstance(conf.smiles, str) and len(conf.smiles) > 0
@@ -60,32 +55,32 @@ def test_from_rdkit_and_to_rdkit_roundtrip(mol):
 
 def test_validation_shape_mismatch_raises():
     """Test that shape mismatches raise ValueError."""
-    atom_types = torch.tensor([1, 8], dtype=Conformer.atom_type_dtype)
-    pos = torch.zeros((3, 3), dtype=Conformer.pos_dtype)
+    atom_types = torch.tensor([1, 8], dtype=torch.int32)
+    pos = torch.zeros((3, 3), dtype=torch.float32)
     with pytest.raises(ValueError, match="atom_types and pos must have matching n_atoms"):
         Conformer(atom_types=atom_types, pos=pos)
 
 
 def test_validation_wrong_atom_types_dtype_raises():
     """Test that wrong dtype for atom_types raises ValueError."""
-    atom_types = torch.tensor([1, 6, 8], dtype=torch.int32)  # wrong dtype
-    pos = torch.zeros((3, 3), dtype=Conformer.pos_dtype)
-    with pytest.raises(ValueError, match="atom_types must have dtype"):
+    atom_types = torch.tensor([1, 6, 8], dtype=torch.float32)  # wrong dtype
+    pos = torch.zeros((3, 3), dtype=torch.float32)
+    with pytest.raises(ValueError, match="atom_types must have an int dtype"):
         Conformer(atom_types=atom_types, pos=pos)
 
 
 def test_validation_wrong_pos_dtype_raises():
     """Test that wrong dtype for pos raises ValueError."""
-    atom_types = torch.tensor([1, 6, 8], dtype=Conformer.atom_type_dtype)
-    pos = torch.zeros((3, 3), dtype=torch.float64)  # wrong dtype
-    with pytest.raises(ValueError, match="pos must have dtype"):
+    atom_types = torch.tensor([1, 6, 8], dtype=torch.int32)
+    pos = torch.zeros((3, 3), dtype=torch.int32)  # wrong dtype
+    with pytest.raises(ValueError, match="pos must have a floating-point dtype"):
         Conformer(atom_types=atom_types, pos=pos)
 
 
 def test_validation_wrong_pos_shape_raises():
     """Test that wrong shape for pos raises ValueError."""
-    atom_types = torch.tensor([1, 6, 8], dtype=Conformer.atom_type_dtype)
-    pos = torch.zeros((3, 2), dtype=Conformer.pos_dtype)  # not (n, 3)
+    atom_types = torch.tensor([1, 6, 8], dtype=torch.int32)
+    pos = torch.zeros((3, 2), dtype=torch.float32)  # not (n, 3)
     with pytest.raises(ValueError, match="pos must have shape"):
         Conformer(atom_types=atom_types, pos=pos)
 

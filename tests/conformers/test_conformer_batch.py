@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from loguru import logger
 from neural_optimiser.conformers import Conformer, ConformerBatch
 from rdkit import Chem
 
@@ -7,10 +8,6 @@ from rdkit import Chem
 def test_from_ase(atoms, atoms2):
     """Test creating a ConformerBatch from multiple ASE Atoms objects,"""
     batch = ConformerBatch.from_ase([atoms, atoms2])
-
-    # Dtypes
-    assert batch.atom_types.dtype == ConformerBatch.atom_type_dtype
-    assert batch.pos.dtype == ConformerBatch.pos_dtype
 
     # Sizes
     assert batch.n_conformers == 2
@@ -21,10 +18,6 @@ def test_from_ase(atoms, atoms2):
     conf1 = batch.conformer(1)
 
     assert isinstance(conf0, Conformer) and isinstance(conf1, Conformer)
-    assert conf0.atom_types.dtype == Conformer.atom_type_dtype
-    assert conf0.pos.dtype == Conformer.pos_dtype
-    assert conf1.atom_types.dtype == Conformer.atom_type_dtype
-    assert conf1.pos.dtype == Conformer.pos_dtype
 
     atoms0 = conf0.to_ase()
     atoms1 = conf1.to_ase()
@@ -48,10 +41,6 @@ def test_from_rdkit_batch(mol, mol2):
     assert batch.n_conformers == 3
     assert batch.n_atoms == n_atoms
 
-    # Dtypes
-    assert batch.atom_types.dtype == ConformerBatch.atom_type_dtype
-    assert batch.pos.dtype == ConformerBatch.pos_dtype
-
     # Slicing back conformers has correct sizes and types
     c0 = batch.conformer(0)
     c1 = batch.conformer(1)
@@ -63,11 +52,6 @@ def test_from_rdkit_batch(mol, mol2):
     assert c0.pos.shape == (mol.GetNumAtoms(), 3)
     assert c1.pos.shape == (mol.GetNumAtoms(), 3)
     assert c2.pos.shape == (mol2.GetNumAtoms(), 3)
-
-    assert c0.atom_types.dtype == Conformer.atom_type_dtype
-    assert c0.pos.dtype == Conformer.pos_dtype
-    assert c2.atom_types.dtype == Conformer.atom_type_dtype
-    assert c2.pos.dtype == Conformer.pos_dtype
 
 
 def test_from_rdkit_single_mol(mol):
@@ -81,16 +65,26 @@ def test_conformer(minimised_batch: ConformerBatch):
     """Test slicing conformers at specific optimisation steps."""
     b = minimised_batch
 
-    # Check conformer 1 without step (uses base pos/forces)
-    c1 = b.conformer(idx=1)
+    # Capture Loguru WARNING+ logs and fail if any are emitted
+    records = []
+    sink_id = logger.add(lambda m: records.append(m), level="WARNING")
+    try:
+        c1 = b.conformer(idx=1)
 
-    for attr in b.__dict__["_store"]:
-        if attr not in ["batch", "ptr"]:
-            assert hasattr(c1, attr)
+        # Attributes present
+        for attr in b.__dict__["_store"]:
+            if attr not in ["batch", "ptr"]:
+                assert hasattr(c1, attr)
 
-    mask1 = b.batch == 1
-    assert torch.allclose(c1.pos, b.pos[mask1], atol=1e-7)
-    assert torch.allclose(c1.forces, b.forces[mask1], atol=1e-7)
+        # Values match base tensors
+        mask1 = b.batch == 1
+        assert torch.allclose(c1.pos, b.pos[mask1], atol=1e-7)
+        assert torch.allclose(c1.forces, b.forces[mask1], atol=1e-7)
+    finally:
+        logger.remove(sink_id)
+
+    # No warnings allowed
+    assert len(records) == 0
 
 
 def test_conformer_with_step(minimised_batch: ConformerBatch):
