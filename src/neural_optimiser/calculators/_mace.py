@@ -1,3 +1,5 @@
+from typing import Literal
+
 import torch
 import torch.nn.functional as F
 from torch_geometric.data import Batch, Data
@@ -9,7 +11,13 @@ from neural_optimiser.calculators.base import Calculator
 class MACECalculator(Calculator):
     """Calculator using a MACE model for energy and force predictions."""
 
-    def __init__(self, model_paths: str, device: str = "cpu", max_neighbours: int = 32):
+    def __init__(
+        self,
+        model_paths: str,
+        device: str = "cpu",
+        max_neighbours: int = 32,
+        default_dtype: Literal["float32", "float64"] = "float32",
+    ) -> None:
         try:
             from mace.tools.utils import AtomicNumberTable
         except ImportError:
@@ -25,15 +33,16 @@ class MACECalculator(Calculator):
         self.device = device
         self.max_neighbours = max_neighbours
         self.model_paths = model_paths
+        self.default_dtype = torch.float32 if default_dtype == "float32" else torch.float64
         self.model = torch.load(f=model_paths, map_location=device, weights_only=False)
-        self.model.requires_grad_(False).eval().to(device)
+        self.model.requires_grad_(False).eval().to(device=device, dtype=self.default_dtype)
 
         self._z_table = AtomicNumberTable([int(z) for z in self.model.atomic_numbers])
 
     def __repr__(self) -> str:
         return (
             f"MACECalculator(model_paths={self.model_paths}, device={self.device}, "
-            f"max_neighbours={self.max_neighbours})"
+            f"max_neighbours={self.max_neighbours}, default_dtype='{self.default_dtype}')"
         )
 
     def _calculate(self, batch: Data | Batch) -> tuple[torch.Tensor, torch.Tensor]:
@@ -58,7 +67,10 @@ class MACECalculator(Calculator):
         if batch.pos.numel() == 0:
             return Batch()
 
-        model_dtype = next(self.model.parameters()).dtype
+        # Convert input positions to the target dtype
+        batch.pos.to(dtype=self.default_dtype)
+
+        # model_dtype = next(self.model.parameters()).dtype
 
         # Node features: one-hot encodings from atomic numbers
         node_indices = self.atomic_numbers_to_indices(
@@ -94,7 +106,7 @@ class MACECalculator(Calculator):
         data_list: list[Data] = []
         for g in range(n_graphs):
             coords_g = coords_per_graph[g]
-            feats_g = feats_per_graph[g].to(dtype=model_dtype)
+            feats_g = feats_per_graph[g].to(dtype=self.default_dtype)
 
             # Edge slice and local reindexing
             mask_g = edge_graph == g
@@ -103,8 +115,8 @@ class MACECalculator(Calculator):
             e_num = local_edge_index.size(1)
 
             # Shifts/cell (no PBC)
-            zeros_e3 = torch.zeros((e_num, 3), dtype=model_dtype, device=self.device)
-            zero_cell = torch.zeros((3, 3), dtype=model_dtype, device=self.device)
+            zeros_e3 = torch.zeros((e_num, 3), dtype=self.default_dtype, device=self.device)
+            zero_cell = torch.zeros((3, 3), dtype=self.default_dtype, device=self.device)
 
             # Edge vectors/lengths
             if e_num:
