@@ -42,6 +42,20 @@ class ConformerBatch(Batch):
         if self.pos.dtype != self.pos_dtype:
             raise ValueError(f"pos must have dtype {self.pos_dtype}, got {self.pos.dtype}")
 
+    def __repr__(self) -> str:
+        """Custom __repr__ to avoid 'ConformerConformerBatch' naming."""
+
+        def _format(value: Any) -> str:
+            """Helper to format values for the repr."""
+            if torch.is_tensor(value):  # e.g., pos=[100, 3]
+                return f"{list(value.shape)}"
+            if isinstance(value, list):  # e.g. atom_types=[10]
+                return f"[{len(value)}]"
+            return f"{value}"  # e.g. strings
+
+        info = [f"{key}={_format(value)}" for key, value in self.items()]
+        return f"ConformerBatch({', '.join(info)})"
+
     @property
     def n_molecules(self) -> int:
         """Number of molecules in the batch."""
