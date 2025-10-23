@@ -70,8 +70,6 @@ class MACECalculator(Calculator):
         # Convert input positions to the target dtype
         batch.pos.to(dtype=self.default_dtype)
 
-        # model_dtype = next(self.model.parameters()).dtype
-
         # Node features: one-hot encodings from atomic numbers
         node_indices = self.atomic_numbers_to_indices(
             batch.atom_types, z_table=self._z_table
