@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ "main" ]
 
+env:
+  UV_VERSION: "0.8"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,9 +24,12 @@ jobs:
         docs-folder: docs
         build-command: make html
         pre-build-command: |
-          apt-get update && apt-get install -y git
-          pip install --upgrade pip
-          pip install -e ".[docs]"
+          python -m pip install -U pip
+          python -m pip install "uv==${{ env.UV_VERSION }}"
+          uv --version
+          uv venv
+          uv pip install -e ".[docs]"
+          df -h
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
