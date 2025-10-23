@@ -9,10 +9,6 @@ def test_from_ase(atoms, atoms2):
     """Test creating a ConformerBatch from multiple ASE Atoms objects,"""
     batch = ConformerBatch.from_ase([atoms, atoms2])
 
-    # Dtypes
-    assert batch.atom_types.dtype == ConformerBatch.atom_type_dtype
-    assert batch.pos.dtype == ConformerBatch.pos_dtype
-
     # Sizes
     assert batch.n_conformers == 2
     assert batch.n_atoms == len(atoms) + len(atoms2)
@@ -22,10 +18,6 @@ def test_from_ase(atoms, atoms2):
     conf1 = batch.conformer(1)
 
     assert isinstance(conf0, Conformer) and isinstance(conf1, Conformer)
-    assert conf0.atom_types.dtype == Conformer.atom_type_dtype
-    assert conf0.pos.dtype == Conformer.pos_dtype
-    assert conf1.atom_types.dtype == Conformer.atom_type_dtype
-    assert conf1.pos.dtype == Conformer.pos_dtype
 
     atoms0 = conf0.to_ase()
     atoms1 = conf1.to_ase()
@@ -49,10 +41,6 @@ def test_from_rdkit_batch(mol, mol2):
     assert batch.n_conformers == 3
     assert batch.n_atoms == n_atoms
 
-    # Dtypes
-    assert batch.atom_types.dtype == ConformerBatch.atom_type_dtype
-    assert batch.pos.dtype == ConformerBatch.pos_dtype
-
     # Slicing back conformers has correct sizes and types
     c0 = batch.conformer(0)
     c1 = batch.conformer(1)
@@ -64,11 +52,6 @@ def test_from_rdkit_batch(mol, mol2):
     assert c0.pos.shape == (mol.GetNumAtoms(), 3)
     assert c1.pos.shape == (mol.GetNumAtoms(), 3)
     assert c2.pos.shape == (mol2.GetNumAtoms(), 3)
-
-    assert c0.atom_types.dtype == Conformer.atom_type_dtype
-    assert c0.pos.dtype == Conformer.pos_dtype
-    assert c2.atom_types.dtype == Conformer.atom_type_dtype
-    assert c2.pos.dtype == Conformer.pos_dtype
 
 
 def test_from_rdkit_single_mol(mol):

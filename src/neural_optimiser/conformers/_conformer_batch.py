@@ -12,9 +12,6 @@ from neural_optimiser.conformers import Conformer
 class ConformerBatch(Batch):
     """A batch of molecular conformers."""
 
-    atom_type_dtype = torch.int64
-    pos_dtype = torch.float32
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.__post_init__()
@@ -35,12 +32,10 @@ class ConformerBatch(Batch):
                 f"atom_types and pos must have matching n_atoms, "
                 f"got {self.atom_types.size(0)} vs {self.pos.size(0)}"
             )
-        if self.atom_types.dtype != self.atom_type_dtype:
-            raise ValueError(
-                f"atom_types must have dtype {self.atom_type_dtype}, got {self.atom_types.dtype}"
-            )
-        if self.pos.dtype != self.pos_dtype:
-            raise ValueError(f"pos must have dtype {self.pos_dtype}, got {self.pos.dtype}")
+        if not self.pos.is_floating_point():
+            raise ValueError(f"pos must have a floating-point dtype, got {self.pos.dtype}")
+        if self.atom_types.is_floating_point():
+            raise ValueError(f"atom_types must have an int dtype, got {self.atom_types.dtype}")
 
     def __repr__(self) -> str:
         """Custom __repr__ to avoid 'ConformerConformerBatch' naming."""

@@ -24,15 +24,6 @@ def test_to_atomic_data_builds_expected_fields_and_dtypes(mace_calculator, batch
     assert atomic.positions.shape == batch.pos.shape
     assert torch.allclose(atomic.positions, batch.pos)
 
-    # # node features one-hot per atom with Z classes
-    # assert hasattr(atomic, "node_attrs")
-    # assert getattr(atomic, "node_attrs").shape[0] == batch.pos.shape[0]
-    # assert getattr(atomic, "node_attrs").shape[1] == len(mace_calculator._z_table)
-
-    # # dtype of node features matches model parameter dtype
-    # model_dtype = next(iter(mace_calculator.model.parameters())).dtype
-    # assert atomic.node_attrs.dtype == model_dtype
-
     # head per-graph index tensor
     assert hasattr(atomic, "head")
     assert atomic.head.dtype == torch.long
