@@ -21,7 +21,10 @@ jobs:
         docs-folder: docs
         build-command: make html
         # pre-build-command: pip install --upgrade pip && pip install -r docs/source/requirements.txt
-        pre-build-command: pip install --upgrade pip && pip install -e ".[docs]"
+        pre-build-command: |
+          apt-get update && apt-get install -y git
+          pip install --upgrade pip
+          pip install -e ".[docs]"
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
