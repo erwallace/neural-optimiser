@@ -1,4 +1,0 @@
-sphinx>=3.0.0
-furo==2021.11.16
-myst-parser
-sphinx-autodoc-typehints
