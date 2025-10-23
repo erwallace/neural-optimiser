@@ -189,29 +189,3 @@ def hunds_rule(mol: Chem.Mol) -> int:
     total_electronic_spin = num_radical_electrons / 2
     spin_multiplicity = 2 * total_electronic_spin + 1
     return int(spin_multiplicity)
-
-
-if __name__ == "__main__":
-    from ase.build import molecule
-    from rdkit.Chem import AllChem
-
-    # Example usage: RDKit
-    mol = Chem.MolFromSmiles("CCO")
-    mol = Chem.AddHs(mol)
-    AllChem.EmbedMolecule(mol)
-    conformer = Conformer.from_rdkit(mol)
-    print(conformer)
-    d2 = conformer.plot(dim=2)
-    # d2.show()
-    d3 = conformer.plot(dim=3)
-    # d3.show()
-
-    conformer2 = Conformer.from_rdkit(mol, charge=4)
-    print(conformer2.charge)
-
-    # Example usage: ASE
-    atoms = molecule("H2O")
-    conformer_ase = Conformer.from_ase(atoms)
-    print(conformer_ase)
-    d3 = conformer_ase.plot(dim=3)
-    # d3.show()

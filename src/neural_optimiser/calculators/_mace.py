@@ -201,27 +201,3 @@ class MACECalculator(Calculator):
         one_hot = F.one_hot(indices, num_classes=num_classes)
         result_dtype = dtype or torch.get_default_dtype()
         return one_hot.to(dtype=result_dtype)
-
-
-if __name__ == "__main__":
-    from ase.build import molecule
-
-    from neural_optimiser.conformers import ConformerBatch
-
-    atoms = molecule("H2O")
-    batch = ConformerBatch.from_ase([atoms], device="cpu")
-
-    model_paths = "./models/MACE_SPICE2_NEUTRAL.model"
-    calculator = MACECalculator(model_paths=model_paths, device="cpu")
-
-    e, f = calculator(batch)
-
-    from mace.calculators.mace import MACECalculator as MACECalc
-
-    mace_calc = MACECalc(model_paths=model_paths, device="cpu")
-    atoms.calc = mace_calc
-    _e = atoms.get_potential_energy()
-    _f = atoms.get_forces()
-
-    assert torch.allclose(e, torch.tensor(_e), atol=1e-4)
-    assert torch.allclose(f, torch.tensor(_f, dtype=torch.float32), atol=1e-4)
