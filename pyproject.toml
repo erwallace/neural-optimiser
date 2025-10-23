@@ -29,7 +29,7 @@ dev = [
 ]
 
 docs = [
-    "sphinx==7.4.*",
+    "sphinx==7.*",
     "furo>=2024.1.29",
     "myst-parser>=3.0.1",
     "sphinx-autodoc-typehints>=2.3.0"
