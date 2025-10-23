@@ -17,6 +17,11 @@ jobs:
         persist-credentials: false
     - name: Build HTML
       uses: ammaraskar/sphinx-action@master
+      with:
+        docs-folder: docs
+        build-command: make html
+        # pre-build-command: pip install -r docs/source/requirements.txt
+        pre-build-command: pip install ".[docs]"
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
