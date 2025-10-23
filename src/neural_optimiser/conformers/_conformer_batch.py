@@ -226,6 +226,12 @@ class ConformerBatch(Batch):
             # Fallback: keep as a python list
             setattr(batch, key, vals)
 
+        # Special handling for energies_dt (2D tensor [n_steps, n_conformers])
+        vals = [getattr(d, "energies_dt", None) for d in data_list]
+        if all((v is not None) for v in vals):
+            energies_dt = torch.stack(vals, dim=1)
+            setattr(batch, "energies_dt", energies_dt)
+
         # Finalise
         batch.__post_init__()
         return batch
