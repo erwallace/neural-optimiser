@@ -1,0 +1,43 @@
+name: "Sphinx: Render docs"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  UV_VERSION: "0.8"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Build HTML
+      uses: ammaraskar/sphinx-action@master
+      with:
+        docs-folder: docs
+        build-command: make html
+        pre-build-command: |
+          python -m pip install -U pip
+          python -m pip install "uv==${{ env.UV_VERSION }}"
+          uv --version
+          uv venv
+          uv pip install -e ".[docs]"
+          df -h
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: html-docs
+        path: docs/source/build/html/
+    - name: Deploy
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == 'refs/heads/main'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: docs/source/build/html

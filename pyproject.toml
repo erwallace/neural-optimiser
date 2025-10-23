@@ -19,12 +19,20 @@ dependencies = [
     "numpy",
     "loguru",
     "universal-pathlib",
+    "sphinx",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
     "pre-commit",
+]
+
+docs = [
+    "sphinx>=3.0.0",
+    "furo==2021.11.16",
+    "myst-parser",
+    "sphinx-autodoc-typehints"
 ]
 
 [tool.uv.sources]
