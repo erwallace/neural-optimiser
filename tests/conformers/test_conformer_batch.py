@@ -148,17 +148,38 @@ def test_cat(atoms, atoms2):
     assert counts == [len(atoms), len(atoms2)]
 
 
-def test_from_data_to_data_roundtrip(minimised_batch: ConformerBatch):
-    """Test converting a ConformerBatch to a list of Data objects and back."""
+def test_from_data_list_single(minimised_batch: ConformerBatch):
+    """Test creating a ConformerBatch from a list of Data objects."""
+    conformer = minimised_batch.conformer(0)
+    new_batch = ConformerBatch.from_data_list([conformer])
+
+    assert isinstance(new_batch, ConformerBatch)
+    assert new_batch.n_conformers == conformer.n_conformers
+    assert new_batch.n_atoms == conformer.n_atoms
+
+    for attr in conformer.__dict__["_store"]:
+        if attr not in ["batch", "ptr"]:
+            orig_value = getattr(conformer, attr)
+            new_value = getattr(new_batch.conformer(0), attr)
+            assert orig_value.shape == new_value.shape
+            assert torch.allclose(orig_value, new_value, atol=1e-7)
+
+
+def test_from_data_list_multi(minimised_batch: ConformerBatch):
+    """Test creating a ConformerBatch from a list of Data objects."""
     data_list = minimised_batch.to_data_list()
     new_batch = ConformerBatch.from_data_list(data_list)
+
     assert isinstance(new_batch, ConformerBatch)
     assert new_batch.n_conformers == minimised_batch.n_conformers
     assert new_batch.n_atoms == minimised_batch.n_atoms
-    # Per-conformer atom counts preserved
-    orig_counts = [d.pos.shape[0] for d in data_list]
-    new_counts = [d.pos.shape[0] for d in new_batch.to_data_list()]
-    assert new_counts == orig_counts
+
+    for attr in minimised_batch.__dict__["_store"]:
+        if attr not in ["batch", "ptr"]:
+            orig_value = getattr(minimised_batch, attr)
+            new_value = getattr(new_batch, attr)
+            assert orig_value.shape == new_value.shape
+            assert torch.allclose(orig_value, new_value, atol=1e-7)
 
 
 def test_from_rdkit_to_rdkit_roundtrip(mol, mol2):
