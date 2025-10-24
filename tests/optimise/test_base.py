@@ -99,9 +99,7 @@ def test_single_data_synthesizes_ptr(atoms, dummy_optimiser_cls, zero_calculator
 
 
 def test_should_exit_all_converged(mock_optimiser):
-    """
-    Tests that `_should_exit` returns True when all conformers have converged.
-    """
+    """Tests that `_should_exit` returns True when all conformers have converged."""
     # GIVEN: All conformers have converged
     mock_optimiser.batch.converged = torch.tensor([True, True])
     fmax_per_conf = torch.tensor([0.1, 0.2])
@@ -115,9 +113,7 @@ def test_should_exit_all_converged(mock_optimiser):
 
 
 def test_should_exit_step_limit_reached(mock_optimiser):
-    """
-    Tests that `_should_exit` returns True when the step limit is reached.
-    """
+    """Tests that `_should_exit` returns True when the step limit is reached."""
     # GIVEN: The step limit has been reached
     mock_optimiser.nsteps = 10
     fmax_per_conf = torch.tensor([0.6, 0.7])  # Not converged
@@ -131,8 +127,7 @@ def test_should_exit_step_limit_reached(mock_optimiser):
 
 
 def test_should_exit_fexit_exceeded(mock_optimiser):
-    """
-    Tests that `_should_exit` returns True when forces on all non-converged
+    """Tests that `_should_exit` returns True when forces on all non-converged
     conformers exceed the fexit threshold.
     """
     # GIVEN: Forces on all non-converged conformers are above fexit
@@ -147,8 +142,7 @@ def test_should_exit_fexit_exceeded(mock_optimiser):
 
 
 def test_should_not_exit_fexit_with_one_below_threshold(mock_optimiser):
-    """
-    Tests that `_should_exit` returns False if at least one non-converged
+    """Tests that `_should_exit` returns False if at least one non-converged
     conformer is below the fexit threshold.
     """
     # GIVEN: One conformer is above fexit, but the other is below
@@ -162,9 +156,7 @@ def test_should_not_exit_fexit_with_one_below_threshold(mock_optimiser):
 
 
 def test_should_not_exit_when_no_conditions_met(mock_optimiser):
-    """
-    Tests that `_should_exit` returns False when no exit conditions are met.
-    """
+    """Tests that `_should_exit` returns False when no exit conditions are met."""
     # GIVEN: No exit conditions are met
     mock_optimiser.nsteps = 5
     fmax_per_conf = torch.tensor([0.6, 0.7])  # Not converged, but below fexit
@@ -177,8 +169,7 @@ def test_should_not_exit_when_no_conditions_met(mock_optimiser):
 
 
 def test_update_convergence_records_step(mock_optimiser):
-    """
-    Tests that `_update_convergence` correctly records the step at which
+    """Tests that `_update_convergence` correctly records the step at which
     a conformer converges.
     """
     # GIVEN: One conformer is about to converge on step 5
@@ -196,6 +187,7 @@ def test_update_convergence_records_step(mock_optimiser):
 
 
 def test_trajectory_single_conformer_finalise_and_clone(batch):
+    """Test Trajectory finalisation and cloning with a single conformer."""
     # batch fixture: single conformer from H2O
     device = batch.pos.device
     nconf = 1
@@ -233,8 +225,7 @@ def test_trajectory_single_conformer_finalise_and_clone(batch):
 
 
 def test_trajectory_multi_conformer_mixed_convergence(atoms, atoms2):
-    from neural_optimiser.conformers import ConformerBatch
-
+    """Test Trajectory finalisation with multiple conformers and mixed convergence."""
     # Build a two-conformer batch from fixtures
     batch = ConformerBatch.from_ase([atoms, atoms2])
     device = batch.pos.device
