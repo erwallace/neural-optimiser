@@ -9,7 +9,7 @@ Batched optimisation algorithms for neural network potential–driven molecular 
 - IO methods for RDkit molecules and ASE atoms objects.
 
 ## Installation
-Pre-requisities: Python 3.11, PyTorch and PyTorch Geometric compatible with your envirnment
+Pre-requisities: Python 3.11, PyTorch and PyTorch Geometric compatible with your environment
 
 ```bash
 # For example
@@ -27,7 +27,7 @@ pip install neural-optimiser
 ```bash
 uv sync
 ```
-or create a virtual environment and install the packages:
+or create a virtual environment and install the packages manually:
 ```bash
 uv venv .venv --python 3.11
 source .venv/bin/activate
