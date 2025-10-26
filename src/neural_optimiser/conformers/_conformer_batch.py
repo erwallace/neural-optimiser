@@ -242,6 +242,23 @@ class ConformerBatch(Batch):
         for key in dt_keys:
             vals = [getattr(d, key, None) for d in data_list]
             if all((v is not None) for v in vals):
+                steps = [v.size(0) for v in vals]
+                # Pad tensors if batches have different n_steps
+                if len(set(steps)) != 1:
+                    max_n_steps = max(steps)
+                    padded_vals = []
+                    for v in vals:
+                        n_steps = v.size(0)
+                        if n_steps < max_n_steps:
+                            pad_size = (0, 0) * (v.dim() - 1) + (0, max_n_steps - n_steps)
+                            v_padded = torch.nn.functional.pad(
+                                v, pad_size, mode="constant", value=0
+                            )
+                            padded_vals.append(v_padded)
+                        else:
+                            padded_vals.append(v)
+                    vals = padded_vals
+
                 if key == "energies_dt" and all(v.dim() == 1 for v in vals):
                     # Stack 1D tensors into 2D [n_steps, n_conformers]
                     attr_dt = torch.stack(vals, dim=1)
