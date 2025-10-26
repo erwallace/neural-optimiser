@@ -312,7 +312,7 @@ class Optimiser(ABC):
                 offenders = torch.nonzero(active, as_tuple=False).view(-1).tolist()
                 logger.warning(
                     f"Exiting due to fexit. All non-converged conformers exceeded fexit. "
-                    f"Offenders: {offenders}."
+                    f"{len(offenders)} Offenders: {offenders}."
                 )
                 self._converged = False
                 return True
