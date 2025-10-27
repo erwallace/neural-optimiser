@@ -146,7 +146,8 @@ class ConformerBatch(Batch):
             num_edges_list.append(n_edges)
 
         # Keys that core batching should NOT touch (we will handle below)
-        exclude_keys = set()
+        dt_keys = {"energies_dt", "forces_dt", "pos_dt"}
+        exclude_keys = dt_keys.copy()
         reserved = {"edge_index", "ptr", "batch"}  # always left to super()
 
         def is_tensor(v):
@@ -154,7 +155,7 @@ class ConformerBatch(Batch):
 
         # Decide exclusion per key using shape/type heuristics
         for key in sorted(all_keys):
-            if key in reserved:
+            if key in reserved or key in dt_keys:
                 continue
 
             vals = [getattr(d, key, None) for d in data_list]
@@ -236,10 +237,39 @@ class ConformerBatch(Batch):
             setattr(batch, key, vals)
 
         # Special handling for energies_dt (2D tensor [n_steps, n_conformers])
-        vals = [getattr(d, "energies_dt", None) for d in data_list]
-        if all((v is not None) for v in vals):
-            energies_dt = torch.stack(vals, dim=1)
-            setattr(batch, "energies_dt", energies_dt)
+        # Special handling for forces_dt (3D tensor [n_steps, n_atoms, 3])
+        # Special handling for pos_dt (3D tensor [n_steps, n_atoms, 3])
+        for key in dt_keys:
+            vals = [getattr(d, key, None) for d in data_list]
+            if all((v is not None) for v in vals):
+                steps = [v.size(0) for v in vals]
+                # Pad tensors if batches have different n_steps
+                if len(set(steps)) != 1:
+                    max_n_steps = max(steps)
+                    padded_vals = []
+                    for v in vals:
+                        n_steps = v.size(0)
+                        if n_steps < max_n_steps:
+                            pad_size = (0, 0) * (v.dim() - 1) + (0, max_n_steps - n_steps)
+                            v_padded = torch.nn.functional.pad(
+                                v, pad_size, mode="constant", value=0
+                            )
+                            padded_vals.append(v_padded)
+                        else:
+                            padded_vals.append(v)
+                    vals = padded_vals
+
+                if key == "energies_dt" and all(v.dim() == 1 for v in vals):
+                    # Stack 1D tensors into 2D [n_steps, n_conformers]
+                    attr_dt = torch.stack(vals, dim=1)
+                elif key in {"forces_dt", "pos_dt"} and all(v.dim() == 2 for v in vals):
+                    # Stack 2D tensors into 3D [n_steps, n_atoms, 3]
+                    attr_dt = torch.stack(vals, dim=1)
+                else:
+                    # Concatenate 2/3D tensors [n_steps, n_atoms, 3]
+                    attr_dt = torch.cat(vals, dim=1)
+
+                setattr(batch, key, attr_dt)
 
         # Finalise
         batch.__post_init__()

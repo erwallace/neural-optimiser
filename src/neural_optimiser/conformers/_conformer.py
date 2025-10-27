@@ -88,6 +88,8 @@ class Conformer(Data):
             n_confs = mol.GetNumConformers()
             if n_confs == 0:
                 raise ValueError("RDKit Mol has no conformers. Provide a 3D conformer.")
+            elif not mol.GetConformer().Is3D():
+                raise ValueError("RDKit Mol's conformer is not 3D.")
             elif n_confs > 1:
                 logger.warning(
                     f"RDKit Mol has {n_confs} conformers. Using the first conformer (ID 0)."

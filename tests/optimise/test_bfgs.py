@@ -9,6 +9,7 @@ from neural_optimiser.optimisers import BFGS
 
 
 def _per_conf_step_norms(batch):
+    """Compute the maximum displacement norm per conformer in the batch."""
     disp = batch.pos_dt[-1] - batch.pos_dt[0]
     norms = torch.linalg.vector_norm(disp, dim=1)
     max_norms = []
@@ -20,6 +21,7 @@ def _per_conf_step_norms(batch):
 
 
 def test_bfgs_requires_calculator_set(atoms):
+    """Test that BFGS raises an error if no calculator is set."""
     batch = ConformerBatch.from_ase([atoms])
     opt = BFGS(steps=1)
     with pytest.raises(AttributeError, match="calculator must be set"):
@@ -27,6 +29,7 @@ def test_bfgs_requires_calculator_set(atoms):
 
 
 def test_bfgs_initial_convergence_with_zero_forces(atoms, zero_calculator):
+    """Test that BFGS detects convergence immediately when forces are zero."""
     batch = ConformerBatch.from_ase([atoms])
 
     opt = BFGS(steps=10, fmax=0.1)
@@ -49,6 +52,7 @@ def test_bfgs_initial_convergence_with_zero_forces(atoms, zero_calculator):
 
 
 def test_bfgs_step_capped_and_state_updated(atoms, const_calculator_factory):
+    """Test that BFGS caps the step size and updates internal state."""
     batch = ConformerBatch.from_ase([atoms])
 
     opt = BFGS(steps=1, fmax=None, max_step=0.04)
@@ -66,6 +70,7 @@ def test_bfgs_step_capped_and_state_updated(atoms, const_calculator_factory):
 
 
 def test_bfgs_batched_independent_scaling(atoms, atoms2, per_conf_const_calculator_factory):
+    """Test that BFGS handles batched conformers with different force scalings."""
     batch = ConformerBatch.from_ase([atoms, atoms2])
     opt = BFGS(steps=1, fmax=None, max_step=0.04)
     opt.calculator = per_conf_const_calculator_factory([1.0, 10.0])
@@ -82,6 +87,7 @@ def test_bfgs_batched_independent_scaling(atoms, atoms2, per_conf_const_calculat
 
 
 def test_bfgs_single_data_supported(atoms, const_calculator_factory):
+    """Test that BFGS supports single Conformer data input."""
     conf = Conformer.from_ase(atoms)
 
     opt = BFGS(steps=2, fmax=None)
@@ -94,6 +100,7 @@ def test_bfgs_single_data_supported(atoms, const_calculator_factory):
 
 
 def test_bfgs_integration(atoms, atoms2):
+    """Test BFGS integration with MACECalculator on CPU."""
     pytest.importorskip("mace", reason="MACE not installed")
     device = "cpu"
     atoms_list = [atoms, atoms2]
@@ -109,6 +116,7 @@ def test_bfgs_integration(atoms, atoms2):
 
 
 def test_bfgs_integration_gpu(atoms, atoms2):
+    """Test BFGS integration with MACECalculator on GPU."""
     pytest.importorskip("mace", reason="MACE not installed")
     if not torch.cuda.is_available():
         pytest.skip("CUDA not available; skipping GPU integration test.")
