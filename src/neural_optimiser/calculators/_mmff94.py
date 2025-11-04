@@ -93,7 +93,7 @@ class MMFF94Calculator(Calculator):
         mol = self._prepare_mol(mol)
 
         ff = self._build_forcefield(mol)
-        energy = torch.tensor([ff.CalcEnergy()])
+        energy = torch.tensor([ff.CalcEnergy()]) * KCAL_PER_MOL_TO_EV
         grad = (
             torch.Tensor(ff.CalcGrad()) * -KCAL_PER_MOL_TO_EV
         )  # Convert to eV/Å for convergence criteria
@@ -106,4 +106,4 @@ class MMFF94Calculator(Calculator):
         mol = self._prepare_mol(mol)
 
         ff = self._build_forcefield(mol)
-        return torch.tensor([ff.CalcEnergy()])
+        return torch.tensor([ff.CalcEnergy()]) * KCAL_PER_MOL_TO_EV
