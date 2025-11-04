@@ -2,6 +2,7 @@ from typing import Literal
 
 import torch
 import torch.nn.functional as F
+from loguru import logger
 from torch_geometric.data import Batch, Data
 from torch_geometric.nn import radius_graph
 
@@ -47,8 +48,16 @@ class MACECalculator(Calculator):
 
     def _calculate(self, batch: Data | Batch) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute energies and forces for a batch of conformers using the MACE model."""
+        from time import time
+
+        start = time()
         atomic_data = self.to_atomic_data(batch)
+        logger.info(f"Conversion to AtomicData took {time() - start:.3f} seconds.")
+
+        strat = time()
         output = self.model(atomic_data, compute_force=True)
+        logger.info(f"Prediction took {time() - strat:.3f} seconds.")
+
         return output["energy"], output["forces"]
 
     def get_energies(self, batch: Data | Batch) -> torch.Tensor:
@@ -211,3 +220,32 @@ class MACECalculator(Calculator):
         one_hot = F.one_hot(indices, num_classes=num_classes)
         result_dtype = dtype or torch.get_default_dtype()
         return one_hot.to(dtype=result_dtype)
+
+
+if __name__ == "__main__":
+    from ase.build import molecule
+
+    from neural_optimiser.conformers import ConformerBatch
+
+    calculator4 = MACECalculator(
+        model_paths="./models/MACE_SPICE2_NEUTRAL.model",
+        device="cuda",
+        max_neighbours=32,
+        default_dtype="float32",
+    )
+
+    batch1 = ConformerBatch.from_ase([molecule("H2O"), molecule("NH3")] * 10)
+    batch1.to("cuda")
+    batch2 = ConformerBatch.from_ase([molecule("H2O"), molecule("NH3")] * 100)
+    batch2.to("cuda")
+    batch3 = ConformerBatch.from_ase([molecule("H2O"), molecule("NH3")] * 1000)
+    batch3.to("cuda")
+
+    print("Batch1: 30 conformers")
+    energies, forces = calculator4._calculate(batch1)
+
+    print("Batch2: 300 conformers")
+    energies, forces = calculator4._calculate(batch2)
+
+    print("Batch3: 3000 conformers")
+    energies, forces = calculator4._calculate(batch3)

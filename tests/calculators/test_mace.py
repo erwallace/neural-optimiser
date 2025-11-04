@@ -52,7 +52,7 @@ def test_validate_batch_missing_fields_raises(mace_calculator):
         mace_calculator._validate_batch(bad)
 
 
-def test_get_energies_matches_ase(mace_calculator, batch, atoms):
+def test_get_energies_matches_ase(mace_calculator, batch, atoms, device):
     """Compare energies to ASE MACE for the same model."""
     pytest.importorskip("mace", reason="MACE not installed")
     from mace.calculators.mace import MACECalculator as MACECalc
@@ -60,14 +60,14 @@ def test_get_energies_matches_ase(mace_calculator, batch, atoms):
     model_path = test_dir / "models" / "MACE_SPICE2_NEUTRAL.model"
     e = mace_calculator.get_energies(batch)
 
-    mace_calc = MACECalc(model_paths=str(model_path), device="cpu")
+    mace_calc = MACECalc(model_paths=str(model_path), device=device)
     atoms.calc = mace_calc
-    ref_e = atoms.get_potential_energy()
+    _e = torch.tensor(atoms.get_potential_energy(), dtype=e.dtype, device=device)
 
-    assert torch.isclose(e.squeeze(), torch.tensor(ref_e, dtype=e.dtype), atol=1e-4)
+    assert torch.isclose(e.squeeze(), _e, atol=1e-4)
 
 
-def test_mace_calculator(mace_calculator, batch, atoms):
+def test_mace_calculator(mace_calculator, batch, atoms, device):
     """Compare MACECalculator results to ASE MACE calculator."""
     pytest.importorskip("mace", reason="MACE not installed")
     from mace.calculators.mace import MACECalculator as MACECalc
@@ -75,17 +75,17 @@ def test_mace_calculator(mace_calculator, batch, atoms):
     model_paths = test_dir / "models" / "MACE_SPICE2_NEUTRAL.model"
     e, f = mace_calculator(batch)
 
-    mace_calc = MACECalc(model_paths=str(model_paths), device="cpu")
+    mace_calc = MACECalc(model_paths=str(model_paths), device=device)
     atoms.calc = mace_calc
-    _e = atoms.get_potential_energy()
-    _f = atoms.get_forces()
+    _e = torch.tensor(atoms.get_potential_energy(), dtype=e.dtype, device=device)
+    _f = torch.tensor(atoms.get_forces(), dtype=f.dtype, device=device)
 
     # Ensure comparable shapes/dtypes
-    assert torch.isclose(e.squeeze(), torch.tensor(_e, dtype=e.dtype), atol=1e-4)
-    assert torch.allclose(f, torch.tensor(_f, dtype=f.dtype), atol=1e-4)
+    assert torch.isclose(e.squeeze(), _e, atol=1e-4)
+    assert torch.allclose(f, _f, atol=1e-4)
 
 
-def test_mace_calculator2(mace_calculator, batch, atoms):
+def test_mace_calculator2(mace_calculator, batch, atoms, device):
     """Compare MACECalculator results to ASE MACE calculator."""
     pytest.importorskip("mace", reason="MACE not installed")
     from mace.calculators.mace import MACECalculator as MACECalc
@@ -93,9 +93,9 @@ def test_mace_calculator2(mace_calculator, batch, atoms):
     model_paths = test_dir / "models" / "MACE_SPICE2_NEUTRAL.model"
     e = mace_calculator.get_energies(batch)
 
-    mace_calc = MACECalc(model_paths=str(model_paths), device="cpu")
+    mace_calc = MACECalc(model_paths=str(model_paths), device=device)
     atoms.calc = mace_calc
-    _e = atoms.get_potential_energy()
+    _e = torch.tensor(atoms.get_potential_energy(), dtype=e.dtype, device=device)
 
     # Ensure comparable shapes/dtypes
-    assert torch.isclose(e.squeeze(), torch.tensor(_e, dtype=e.dtype), atol=1e-4)
+    assert torch.isclose(e.squeeze(), _e, atol=1e-4)

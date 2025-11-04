@@ -1,12 +1,20 @@
 import pytest
 import torch
+from ase import Atoms
 from ase.build import molecule
 from neural_optimiser import test_dir
-from neural_optimiser.calculators import MACECalculator
+from neural_optimiser.calculators import FAIRChemCalculator, MACECalculator
+from neural_optimiser.calculators.base import Calculator
 from neural_optimiser.conformers import ConformerBatch
 from neural_optimiser.optimisers.base import Optimiser
 from rdkit import Chem
 from rdkit.Chem import AllChem
+
+
+@pytest.fixture(scope="session")
+def device() -> str:
+    """Device for testing: 'cuda' if available, else 'cpu'."""
+    return "cuda" if torch.cuda.is_available() else "cpu"
 
 
 @pytest.fixture(autouse=True)
@@ -16,7 +24,7 @@ def set_torch_seed():
 
 
 @pytest.fixture
-def mol():
+def mol() -> Chem.Mol:
     """Simple RDKit molecule with 3D coordinates."""
     mol = Chem.MolFromSmiles("CCO")
     mol = Chem.AddHs(mol)
@@ -27,7 +35,7 @@ def mol():
 
 
 @pytest.fixture
-def mol2():
+def mol2() -> Chem.Mol:
     """Simple RDKit molecule with 3D coordinates."""
     mol = Chem.MolFromSmiles("CC")
     mol = Chem.AddHs(mol)
@@ -38,25 +46,27 @@ def mol2():
 
 
 @pytest.fixture
-def atoms():
+def atoms() -> Atoms:
     """Simple ASE Atoms object."""
     return molecule("H2O")
 
 
 @pytest.fixture
-def atoms2():
+def atoms2() -> Atoms:
     """Simple ASE Atoms object."""
     return molecule("NH3")
 
 
 @pytest.fixture
-def batch(atoms):
+def batch(atoms, device) -> ConformerBatch:
     """Single-conformer batch for testing."""
-    return ConformerBatch.from_ase([atoms])
+    batch = ConformerBatch.from_ase([atoms])
+    batch = batch.to(device)
+    return batch
 
 
 @pytest.fixture
-def minimised_batch(atoms, atoms2):
+def minimised_batch(atoms, atoms2, device) -> ConformerBatch:
     """Two-conformer batch with optimisation trajectory data for testing."""
     batch = ConformerBatch.from_ase([atoms, atoms2])
 
@@ -77,6 +87,8 @@ def minimised_batch(atoms, atoms2):
     batch.energies_dt = torch.tensor(  # [4, n_confs]
         [[-0.8, -1.8], [-1.0, -2.0], [-1.2, -2.2], [-1.4, -2.4]], dtype=torch.float32
     )
+
+    batch = batch.to(device)
 
     return batch
 
@@ -124,19 +136,19 @@ class PerConfConstCalculator:
 
 
 @pytest.fixture
-def dummy_optimiser_cls():
+def dummy_optimiser_cls() -> Optimiser:
     """A minimal concrete optimiser class."""
     return DummyOptimiser
 
 
 @pytest.fixture
-def zero_calculator():
+def zero_calculator() -> Calculator:
     """A calculator that returns zero energy and forces."""
     return ZeroCalculator()
 
 
 @pytest.fixture
-def const_calculator_factory():
+def const_calculator_factory() -> Calculator:
     """A factory for calculators that return constant forces."""
 
     def _make(value: float):
@@ -146,7 +158,7 @@ def const_calculator_factory():
 
 
 @pytest.fixture
-def per_conf_const_calculator_factory():
+def per_conf_const_calculator_factory() -> Calculator:
     """A factory for calculators that return constant forces per conformer."""
 
     def _make(values):
@@ -155,10 +167,26 @@ def per_conf_const_calculator_factory():
     return _make
 
 
-@pytest.fixture
-def mace_calculator(scope="session"):
+@pytest.fixture(scope="session")
+def mace_calculator(device: str) -> MACECalculator:
     """A MACE calculator for testing (if MACE is installed)."""
     pytest.importorskip("mace", reason="MACE not installed")
 
     model_paths = test_dir / "models" / "MACE_SPICE2_NEUTRAL.model"
-    return MACECalculator(model_paths=str(model_paths), device="cpu")
+    return MACECalculator(model_paths=str(model_paths), device=device)
+
+
+@pytest.fixture(scope="session")
+def fairchem_model_path() -> str:
+    """Path to FAIRChem test model."""
+    path = test_dir / "models" / "omol25_esen_sm_direct.pt"
+    if not path.exists():
+        pytest.skip(f"FAIRChem test model not found ({path}).")
+    return path
+
+
+@pytest.fixture(scope="session")
+def fairchem_calculator(device: str, fairchem_model_path: str) -> FAIRChemCalculator:
+    """A FAIRChem calculator for testing (if FAIRChem is installed)."""
+    pytest.importorskip("fairchem", reason="FAIRChem not installed")
+    return FAIRChemCalculator(model_paths=str(fairchem_model_path), device=device)
