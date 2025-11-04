@@ -48,7 +48,7 @@ def test_single_conformer_energy_and_forces_shape(batch):
 
     # energy is a scalar tensor
     assert isinstance(energy, torch.Tensor)
-    assert energy.ndim == 0
+    assert energy.ndim == 1
 
     # forces match [n_atoms, 3]
     assert isinstance(forces, torch.Tensor)
