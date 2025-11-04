@@ -16,11 +16,9 @@ class Calculator(ABC):
         self.device = batch.pos.device
         return self._calculate(batch)
 
-    @abstractmethod
     def __repr__(self):
         ...
 
-    @abstractmethod
     def get_energies(self, batch: Data | Batch) -> torch.Tensor:
         """Get only energies from the calculator."""
         ...
@@ -30,7 +28,6 @@ class Calculator(ABC):
         """Return (energies, forces) from the calculator."""
         ...
 
-    @abstractmethod
     def to_atomic_data(self, batch: Data | Batch) -> Batch:
         """Convert to AtomicData format compatible with ML model used."""
         ...

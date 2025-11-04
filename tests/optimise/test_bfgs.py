@@ -3,7 +3,7 @@ import math
 import pytest
 import torch
 from neural_optimiser import test_dir
-from neural_optimiser.calculators import MACECalculator
+from neural_optimiser.calculators import MACECalculator, MMFF94Calculator
 from neural_optimiser.conformers import Conformer, ConformerBatch
 from neural_optimiser.optimisers import BFGS
 
@@ -111,6 +111,16 @@ def test_bfgs_integration(atoms, atoms2):
 
     optimiser = BFGS(steps=100, fmax=0.05, fexit=500.0)
     optimiser.calculator = MACECalculator(model_paths=model_paths, device=device)
+    converged = optimiser.run(batch)
+    assert converged is True
+
+
+def test_bfgs_integration2(atoms2):
+    """Test BFGS integration with MMFF94Calculator on CPU."""
+    batch = ConformerBatch.from_ase([atoms2])
+
+    optimiser = BFGS(steps=100, fmax=0.05, fexit=500.0)
+    optimiser.calculator = MMFF94Calculator()
     converged = optimiser.run(batch)
     assert converged is True
 
