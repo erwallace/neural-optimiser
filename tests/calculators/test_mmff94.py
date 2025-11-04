@@ -1,9 +1,12 @@
 import pytest
 import torch
+from ase.units import eV, kcal, mol
 from neural_optimiser.calculators import MMFF94Calculator
 from neural_optimiser.conformers import Conformer
 from rdkit import Chem
 from rdkit.Chem import AllChem, rdDetermineBonds
+
+KCAL_PER_MOL_TO_EV = kcal / mol / eV
 
 
 def test_MMFF94Calculator_calculate(mol):
@@ -11,14 +14,14 @@ def test_MMFF94Calculator_calculate(mol):
     mp = AllChem.MMFFGetMoleculeProperties(mol)
     ff = AllChem.MMFFGetMoleculeForceField(mol, mp)
     _energy = ff.CalcEnergy()
-    _forces = ff.CalcGrad()
+    _forces = torch.tensor(ff.CalcGrad()) * -KCAL_PER_MOL_TO_EV
 
     data = Conformer.from_rdkit(mol)
     calc = MMFF94Calculator()
     energy, forces = calc._calculate(data)
 
     assert torch.isclose(energy, torch.tensor(_energy))
-    assert torch.allclose(forces.flatten(), torch.tensor(_forces))
+    assert torch.allclose(forces.flatten(), torch.Tensor(_forces))
 
 
 def test_repr_no_args():
