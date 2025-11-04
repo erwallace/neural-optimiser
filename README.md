@@ -134,12 +134,6 @@ class MyCalculator(Calculator):
         forces = torch.zeros_like(batch.pos, device=self.device)
         # ... fill forces from your model ...
         return energies, forces
-
-    def to_atomic_data():
-        pass
-
-    def from_atomic_data():
-        pass
 ```
 
 ### Data Containers
