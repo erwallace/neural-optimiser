@@ -22,8 +22,9 @@ def test_fairchem_calculator(fairchem_calculator, fairchem_model_path, batch, at
     e, f = fairchem_calculator(batch)
 
     predictor = load_predict_unit(path=fairchem_model_path, device=device)
-    fairchem_calc = FAIRChemCalc(predictor)
+    fairchem_calc = FAIRChemCalc(predictor, task_name="omol")
     atoms.calc = fairchem_calc
+    atoms.info = {"charge": batch.charge[0].item(), "spin": batch.spin[0].item()}
     _e = torch.tensor(atoms.get_potential_energy(), dtype=e.dtype, device=device)
     _f = torch.tensor(atoms.get_forces(), dtype=f.dtype, device=device)
 

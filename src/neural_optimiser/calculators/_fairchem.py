@@ -36,7 +36,7 @@ class FAIRChemCalculator(Calculator):
     def __repr__(self):
         return (
             f"FAIRChemCalculator(model_paths={self.model_paths}, device={self.device}, "
-            f"max_neighbours={self.max_neighbours}, radius={self.radius})"
+            f"default_dtype={self.default_dtype}, task_name={self.task_name})"
         )
 
     def _calculate(self, batch: Data | Batch) -> tuple[torch.Tensor, torch.Tensor]:
@@ -45,12 +45,15 @@ class FAIRChemCalculator(Calculator):
 
         atoms = batch.to_ase()
         [
-            atoms[i].info.update({"charge": batch.charge[i], "spin": batch.spin[i]})
+            atoms[i].info.update({"charge": batch.charge[i].item(), "spin": batch.spin[i].item()})
             for i in range(batch.n_conformers)
         ]
-        atomic_data = [AtomicData.from_ase(atom, task_name="omol") for atom in atoms]
-
-        # TODO: set charge and spin
+        atomic_data = [
+            AtomicData.from_ase(
+                atom, task_name="omol", r_data_keys=["charge", "spin"], r_edges=False
+            )
+            for atom in atoms
+        ]
 
         batch = atomicdata_list_to_batch(atomic_data)
         output = self.predictor.predict(batch)
