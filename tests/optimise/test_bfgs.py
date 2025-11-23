@@ -99,7 +99,8 @@ def test_bfgs_single_data_supported(atoms, const_calculator_factory):
     assert hasattr(conf, "pos_dt") and conf.pos_dt.shape == (3, conf.pos.shape[0], 3)
 
 
-def test_bfgs_integration(atoms, atoms2):
+@pytest.mark.integration
+def test_bfgs_integration(atoms, atoms2, mace_calculator):
     """Test BFGS integration with MACECalculator on CPU."""
     pytest.importorskip("mace", reason="MACE not installed")
     device = "cpu"
@@ -107,15 +108,29 @@ def test_bfgs_integration(atoms, atoms2):
     batch = ConformerBatch.from_ase(atoms_list)
     batch.to(device)
 
-    model_paths = test_dir / "models" / "MACE_SPICE2_NEUTRAL.model"
-
     optimiser = BFGS(steps=100, fmax=0.05, fexit=500.0)
-    optimiser.calculator = MACECalculator(model_paths=model_paths, device=device)
+    optimiser.calculator = mace_calculator()
     converged = optimiser.run(batch)
     assert converged is True
 
 
-def test_bfgs_integration2(atoms2):
+@pytest.mark.integration
+def test_bfgs_integration2(atoms, atoms2, fairchem_calculator):
+    """Test BFGS integration with FAIRChemCalculator on CPU."""
+    pytest.importorskip("fairchem", reason="FAIRChem not installed")
+    device = "cpu"
+    atoms_list = [atoms, atoms2]
+    batch = ConformerBatch.from_ase(atoms_list)
+    batch.to(device)
+
+    optimiser = BFGS(steps=100, fmax=0.05, fexit=500.0)
+    optimiser.calculator = fairchem_calculator()
+    converged = optimiser.run(batch)
+    assert converged is True
+
+
+@pytest.mark.integration
+def test_bfgs_integration3(atoms2):
     """Test BFGS integration with MMFF94Calculator on CPU."""
     batch = ConformerBatch.from_ase([atoms2])
 
@@ -125,6 +140,7 @@ def test_bfgs_integration2(atoms2):
     assert converged is True
 
 
+@pytest.mark.integration
 def test_bfgs_integration_gpu(atoms, atoms2):
     """Test BFGS integration with MACECalculator on GPU."""
     pytest.importorskip("mace", reason="MACE not installed")
