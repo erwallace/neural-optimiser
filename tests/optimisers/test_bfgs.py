@@ -27,9 +27,10 @@ def test_bfgs_requires_calculator_set(atoms):
         opt.run(batch)
 
 
-def test_bfgs_initial_convergence_with_zero_forces(atoms, zero_calculator):
+def test_bfgs_initial_convergence_with_zero_forces(atoms, zero_calculator, device):
     """Test that BFGS detects convergence immediately when forces are zero."""
     batch = ConformerBatch.from_ase([atoms])
+    batch.to(device)
 
     opt = BFGS(steps=10, fmax=0.1)
     opt.calculator = zero_calculator
@@ -99,10 +100,9 @@ def test_bfgs_single_data_supported(atoms, const_calculator_factory):
 
 
 @pytest.mark.integration
-def test_bfgs_integration(atoms, atoms2, mace_calculator):
+def test_bfgs_integration(atoms, atoms2, mace_calculator, device):
     """Test BFGS integration with MACECalculator."""
     pytest.importorskip("mace", reason="MACE not installed")
-    device = "cpu"
     atoms_list = [atoms, atoms2]
     batch = ConformerBatch.from_ase(atoms_list)
     batch.to(device)
@@ -114,10 +114,9 @@ def test_bfgs_integration(atoms, atoms2, mace_calculator):
 
 
 @pytest.mark.integration
-def test_bfgs_integration2(atoms, atoms2, fairchem_calculator):
+def test_bfgs_integration2(atoms, atoms2, fairchem_calculator, device):
     """Test BFGS integration with FAIRChemCalculator."""
     pytest.importorskip("fairchem", reason="FAIRChem not installed")
-    device = "cpu"
     atoms_list = [atoms, atoms2]
     batch = ConformerBatch.from_ase(atoms_list)
     batch.to(device)
