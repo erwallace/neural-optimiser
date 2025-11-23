@@ -108,7 +108,7 @@ def test_bfgs_integration(atoms, atoms2, mace_calculator):
     batch.to(device)
 
     optimiser = BFGS(steps=100, fmax=0.05, fexit=500.0)
-    optimiser.calculator = mace_calculator()
+    optimiser.calculator = mace_calculator
     converged = optimiser.run(batch)
     assert converged is True
 
@@ -123,7 +123,7 @@ def test_bfgs_integration2(atoms, atoms2, fairchem_calculator):
     batch.to(device)
 
     optimiser = BFGS(steps=100, fmax=0.05, fexit=500.0)
-    optimiser.calculator = fairchem_calculator()
+    optimiser.calculator = fairchem_calculator
     converged = optimiser.run(batch)
     assert converged is True
 
