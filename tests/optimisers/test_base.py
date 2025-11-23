@@ -85,9 +85,10 @@ def test_step_limit_and_trajectory(batch, dummy_optimiser_cls, zero_calculator):
     assert torch.allclose(batch.pos_dt[0], batch.pos_dt[-1])
 
 
-def test_single_data_synthesizes_ptr(atoms, dummy_optimiser_cls, zero_calculator):
+def test_single_data_synthesizes_ptr(atoms, dummy_optimiser_cls, zero_calculator, device):
     """Test that a single Conformer (not ConformerBatch) is handled correctly."""
     conf = Conformer.from_ase(atoms)
+    conf.to(device)
 
     opt = dummy_optimiser_cls(steps=2, fmax=None)
     opt.calculator = zero_calculator

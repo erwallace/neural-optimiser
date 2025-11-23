@@ -107,8 +107,13 @@ class DummyOptimiser(Optimiser):
 class ZeroCalculator:
     """Calculator that returns zero energy and forces."""
 
+    def __init__(self, device: str):
+        self.device = device
+
     def __call__(self, batch):
-        return torch.zeros(batch.n_conformers), torch.zeros_like(batch.pos)
+        return torch.zeros(batch.n_conformers, device=self.device), torch.zeros_like(
+            batch.pos, device=self.device
+        )
 
 
 class ConstCalculator:
@@ -142,9 +147,9 @@ def dummy_optimiser_cls() -> Optimiser:
 
 
 @pytest.fixture
-def zero_calculator() -> Calculator:
+def zero_calculator(device) -> Calculator:
     """A calculator that returns zero energy and forces."""
-    return ZeroCalculator()
+    return ZeroCalculator(device)
 
 
 @pytest.fixture
