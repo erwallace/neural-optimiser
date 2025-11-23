@@ -13,7 +13,7 @@ def test_MMFF94Calculator_calculate(mol):
     """Compare energy and forces to RDKit's MMFF94 implementation."""
     mp = AllChem.MMFFGetMoleculeProperties(mol)
     ff = AllChem.MMFFGetMoleculeForceField(mol, mp)
-    _energy = ff.CalcEnergy()
+    _energy = ff.CalcEnergy() * KCAL_PER_MOL_TO_EV
     _forces = torch.tensor(ff.CalcGrad()) * -KCAL_PER_MOL_TO_EV
 
     data = Conformer.from_rdkit(mol)
@@ -21,7 +21,7 @@ def test_MMFF94Calculator_calculate(mol):
     energy, forces = calc._calculate(data)
 
     assert torch.isclose(energy, torch.tensor(_energy))
-    assert torch.allclose(forces.flatten(), torch.Tensor(_forces))
+    assert torch.allclose(forces.flatten(), torch.tensor(_forces))
 
 
 def test_repr_no_args():
