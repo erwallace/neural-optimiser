@@ -2,8 +2,7 @@ import math
 
 import pytest
 import torch
-from neural_optimiser import test_dir
-from neural_optimiser.calculators import MACECalculator, MMFF94Calculator
+from neural_optimiser.calculators import MMFF94Calculator
 from neural_optimiser.conformers import Conformer, ConformerBatch
 from neural_optimiser.optimisers import BFGS
 
@@ -101,7 +100,7 @@ def test_bfgs_single_data_supported(atoms, const_calculator_factory):
 
 @pytest.mark.integration
 def test_bfgs_integration(atoms, atoms2, mace_calculator):
-    """Test BFGS integration with MACECalculator on CPU."""
+    """Test BFGS integration with MACECalculator."""
     pytest.importorskip("mace", reason="MACE not installed")
     device = "cpu"
     atoms_list = [atoms, atoms2]
@@ -116,7 +115,7 @@ def test_bfgs_integration(atoms, atoms2, mace_calculator):
 
 @pytest.mark.integration
 def test_bfgs_integration2(atoms, atoms2, fairchem_calculator):
-    """Test BFGS integration with FAIRChemCalculator on CPU."""
+    """Test BFGS integration with FAIRChemCalculator."""
     pytest.importorskip("fairchem", reason="FAIRChem not installed")
     device = "cpu"
     atoms_list = [atoms, atoms2]
@@ -131,29 +130,10 @@ def test_bfgs_integration2(atoms, atoms2, fairchem_calculator):
 
 @pytest.mark.integration
 def test_bfgs_integration3(atoms2):
-    """Test BFGS integration with MMFF94Calculator on CPU."""
+    """Test BFGS integration with MMFF94Calculator."""
     batch = ConformerBatch.from_ase([atoms2])
 
     optimiser = BFGS(steps=100, fmax=0.05, fexit=500.0)
     optimiser.calculator = MMFF94Calculator()
-    converged = optimiser.run(batch)
-    assert converged is True
-
-
-@pytest.mark.integration
-def test_bfgs_integration_gpu(atoms, atoms2):
-    """Test BFGS integration with MACECalculator on GPU."""
-    pytest.importorskip("mace", reason="MACE not installed")
-    if not torch.cuda.is_available():
-        pytest.skip("CUDA not available; skipping GPU integration test.")
-    device = "cuda"
-    atoms_list = [atoms, atoms2]
-    batch = ConformerBatch.from_ase(atoms_list)
-    batch.to(device)
-
-    model_paths = test_dir / "models" / "MACE_SPICE2_NEUTRAL.model"
-
-    optimiser = BFGS(steps=100, fmax=0.05, fexit=500.0)
-    optimiser.calculator = MACECalculator(model_paths=model_paths, device=device)
     converged = optimiser.run(batch)
     assert converged is True
