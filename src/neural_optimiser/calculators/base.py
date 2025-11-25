@@ -1,13 +1,23 @@
+import tempfile
 from abc import ABC, abstractmethod
 
 import torch
 from torch_geometric.data import Batch, Data
+
+from neural_optimiser.utils.s3 import copy_from_s3
 
 
 class Calculator(ABC):
     """Abstract base class for calculators used in neural optimisers."""
 
     device: str | None = None
+
+    def __init__(self, model_paths: str):
+        # Check if model_paths is an S3 path and copy to local if so
+        if model_paths.startswith("s3://"):
+            local_path = tempfile.mktemp(suffix=".model")
+            copy_from_s3(model_paths, local_path)
+            model_paths = local_path
 
     def __call__(self, batch: Data | Batch) -> tuple[torch.Tensor, torch.Tensor]:
         """Validate inputs, set device, and delegate to implementation."""

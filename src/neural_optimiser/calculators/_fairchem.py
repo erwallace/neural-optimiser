@@ -27,6 +27,7 @@ class FAIRChemCalculator(Calculator):
             raise ImportError(
                 "FAIRChem is not installed. Run `uv pip install fairchem-core` to install."
             )
+        super().__init__(model_paths=model_paths)
         self.device = device
         self.task_name = task_name
         self.default_dtype = torch.float32 if default_dtype == "float32" else torch.float64
