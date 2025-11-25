@@ -25,7 +25,7 @@ class FAIRChemCalculator(Calculator):
             from fairchem.core.units.mlip_unit import load_predict_unit
         except ImportError:
             raise ImportError(
-                "MACE is not installed. Run `uv pip install fairchem-core` to install."
+                "FAIRChem is not installed. Run `uv pip install fairchem-core` to install."
             )
         self.device = device
         self.task_name = task_name
