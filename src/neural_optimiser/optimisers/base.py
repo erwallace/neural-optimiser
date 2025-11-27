@@ -135,7 +135,7 @@ class Optimiser(ABC):
 
         # Initial force evaluation
         energies, forces = self.calculator(self.batch)
-        self.trajectory.add_initial_properties(energies, forces)
+        self.trajectory.add_frame(energies=energies, forces=forces)
         fmax_per_conf = self._per_conformer_max_force(forces)
 
         # Update per-conformer converged mask (no step index recorded yet)
@@ -157,7 +157,7 @@ class Optimiser(ABC):
 
             # Get new forces and energies and update trajectory
             energies, forces = self.calculator(self.batch)
-            self.trajectory.add_frame(self.batch.pos, energies, forces)
+            self.trajectory.add_frame(energies, forces, self.batch.pos)
             fmax_per_conf = self._per_conformer_max_force(forces)
 
             # Update convergence and exit checks after step (record step index)
@@ -335,20 +335,16 @@ class Trajectory:
         self.n_confs = batch.n_conformers
 
         # Use lists for efficient appending of tensors
-        self.pos_dt = [batch.pos.clone()]
+        self.pos_dt = [batch.pos.detach().clone()]
         self.forces_dt = []
         self.energies_dt = []
 
-    def add_frame(self, pos: torch.Tensor, energies: torch.Tensor, forces: torch.Tensor):
+    def add_frame(self, energies: torch.Tensor, forces: torch.Tensor, pos: torch.Tensor = None):
         """Append a new frame (positions, energies, forces) to the trajectory."""
-        self.pos_dt.append(pos.clone())
-        self.energies_dt.append(energies)
-        self.forces_dt.append(forces)
-
-    def add_initial_properties(self, energies: torch.Tensor, forces: torch.Tensor):
-        """Store the energies and forces of the initial state."""
-        self.energies_dt.append(energies)
-        self.forces_dt.append(forces)
+        if pos is not None:  # not used for initial frame
+            self.pos_dt.append(pos.detach().clone())
+        self.energies_dt.append(energies.detach())
+        self.forces_dt.append(forces.detach())
 
     def finalise(self, batch: Data | Batch):
         """

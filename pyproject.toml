@@ -19,6 +19,7 @@ dependencies = [
     "numpy",
     "loguru",
     "universal-pathlib",
+    "boto3",
 ]
 
 [project.optional-dependencies]

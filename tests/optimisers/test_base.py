@@ -199,14 +199,14 @@ def test_trajectory_single_conformer_finalise_and_clone(batch):
     # Initial properties
     e0 = torch.zeros(nconf, dtype=torch.float32, device=device)
     f0 = torch.arange(natoms, dtype=torch.float32, device=device).unsqueeze(1).repeat(1, 3)
-    traj.add_initial_properties(e0, f0)
+    traj.add_frame(energies=e0, forces=f0)
 
     # Add one frame and then mutate inputs to ensure cloning
     pos1 = batch.pos + 10.0
     e1 = torch.tensor([1.0], dtype=torch.float32, device=device)
     f1 = f0 + 10.0
     pos1_before = pos1.clone()
-    traj.add_frame(pos1, e1, f1)
+    traj.add_frame(energies=e1, forces=f1, pos=pos1)
     pos1 += 999.0  # mutation after add_frame should not affect stored trajectory
 
     # Converged at frame 1
@@ -239,19 +239,19 @@ def test_trajectory_multi_conformer_mixed_convergence(atoms, atoms2):
     # Initial properties
     e0 = torch.tensor([0.0, 10.0], dtype=torch.float32, device=device)
     f0 = torch.zeros(natoms, 3, dtype=torch.float32, device=device)
-    traj.add_initial_properties(e0, f0)
+    traj.add_frame(energies=e0, forces=f0)
 
     # Frame 1
     pos1 = batch.pos + 10.0
     e1 = torch.tensor([1.0, 11.0], dtype=torch.float32, device=device)
     f1 = f0 + 10.0
-    traj.add_frame(pos1, e1, f1)
+    traj.add_frame(energies=e1, forces=f1, pos=pos1)
 
     # Frame 2
     pos2 = batch.pos + 20.0
     e2 = torch.tensor([2.0, 12.0], dtype=torch.float32, device=device)
     f2 = f0 + 20.0
-    traj.add_frame(pos2, e2, f2)
+    traj.add_frame(energies=e2, forces=f2, pos=pos2)
 
     # Mixed convergence: conf0 at frame 1, conf1 not converged -> last frame (-1)
     batch.converged_step = torch.tensor([1, -1], dtype=torch.long, device=device)

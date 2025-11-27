@@ -17,7 +17,7 @@ class MACECalculator(Calculator):
         device: str = "cpu",
         max_neighbours: int = 32,
         default_dtype: Literal["float32", "float64"] = "float32",
-    ) -> None:
+    ):
         try:
             from mace.tools.utils import AtomicNumberTable
         except ImportError:
@@ -29,7 +29,7 @@ class MACECalculator(Calculator):
             raise ImportError(
                 "torch-cluster is not installed. Run `uv pip install torch-cluster` to install."
             )
-
+        super().__init__(model_paths=model_paths)
         self.device = device
         self.max_neighbours = max_neighbours
         self.model_paths = model_paths
