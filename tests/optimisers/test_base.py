@@ -199,7 +199,7 @@ def test_trajectory_single_conformer_finalise_and_clone(batch):
     # Initial properties
     e0 = torch.zeros(nconf, dtype=torch.float32, device=device)
     f0 = torch.arange(natoms, dtype=torch.float32, device=device).unsqueeze(1).repeat(1, 3)
-    traj.add_initial_properties(e0, f0)
+    traj.add_frame(energies=e0, forces=f0)
 
     # Add one frame and then mutate inputs to ensure cloning
     pos1 = batch.pos + 10.0
@@ -239,7 +239,7 @@ def test_trajectory_multi_conformer_mixed_convergence(atoms, atoms2):
     # Initial properties
     e0 = torch.tensor([0.0, 10.0], dtype=torch.float32, device=device)
     f0 = torch.zeros(natoms, 3, dtype=torch.float32, device=device)
-    traj.add_initial_properties(e0, f0)
+    traj.add_frame(energies=e0, forces=f0)
 
     # Frame 1
     pos1 = batch.pos + 10.0
