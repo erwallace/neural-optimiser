@@ -341,7 +341,7 @@ class Trajectory:
 
     def add_frame(self, energies: torch.Tensor, forces: torch.Tensor, pos: torch.Tensor = None):
         """Append a new frame (positions, energies, forces) to the trajectory."""
-        if pos:  # not used for initial frame
+        if pos is not None:  # not used for initial frame
             self.pos_dt.append(pos.detach().clone())
         self.energies_dt.append(energies.detach())
         self.forces_dt.append(forces.detach())
